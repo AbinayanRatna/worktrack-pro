@@ -182,11 +182,11 @@ export default function TaskDetail() {
   return (
     <Layout>
       {/* Back button & header alignment */}
-      <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div className="page-header" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
         <button onClick={() => navigate('/')} className="btn" style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
           <ArrowLeft size={18} />
         </button>
-        <h1 style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: 0 }}>
+        <h1 style={{ margin: 0 }}>
           {isNew ? 'Create New Task' : 'Task Details'}
         </h1>
       </div>
@@ -197,7 +197,7 @@ export default function TaskDetail() {
           <div style={{ flex: 1 }}>
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', minHeight: '600px', height: '100%' }}>
               {/* Row 1: Title and Reviewer */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)', gap: '1.5rem' }}>
+              <div className="form-grid-2-1">
                 <div>
                   <label style={labelSt}>Title <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
@@ -226,7 +226,7 @@ export default function TaskDetail() {
               </div>
 
               {/* Row 2: Assigned To, Date Assigned, Due Date */}
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: '1.5rem' }}>
+              <div className="form-grid-3">
                 <div>
                   <label style={labelSt}>Assigned To <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} required style={inputSt}>

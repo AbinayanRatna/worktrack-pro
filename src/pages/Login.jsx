@@ -44,8 +44,10 @@ export default function Login() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [signupDone, setSignupDone] = useState(false);
   const [focusedField, setFocusedField] = useState(null);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetEmail, setResetEmail] = useState('');
 
-  const { login, signup } = useAuth();
+  const { login, signup, resetPassword } = useAuth();
   const navigate = useNavigate();
 
   async function handleSubmit(e) {
@@ -65,6 +67,22 @@ export default function Login() {
         toast.success('Logged in successfully!');
         navigate('/');
       }
+    } catch (error) {
+      toast.error(getFriendlyErrorMessage(error));
+    } finally {
+      setIsProcessing(false);
+    }
+  }
+
+  async function handleResetPassword(e) {
+    e.preventDefault();
+    if (!resetEmail) { toast.error('Please enter your email.'); return; }
+    try {
+      setIsProcessing(true);
+      await resetPassword(resetEmail);
+      toast.success('Password reset email sent! Check your inbox.');
+      setIsResettingPassword(false);
+      setResetEmail('');
     } catch (error) {
       toast.error(getFriendlyErrorMessage(error));
     } finally {
@@ -125,6 +143,43 @@ export default function Login() {
     );
   }
 
+  // ── Forgot Password form ───────────────────────────────────────────────────
+  if (isResettingPassword) {
+    return (
+      <div style={pageWrap}>
+        <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
+              Reset Password
+            </h1>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>We'll send you a recovery link</p>
+          </div>
+
+          <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+              <label style={labelStyle}>Email Address</label>
+              <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="you@company.com" required style={inputStyle} />
+            </div>
+
+            <button
+              type="submit" disabled={isProcessing} className="btn btn-primary"
+              style={{ marginTop: '0.5rem', padding: '0.875rem', fontSize: '0.95rem', fontWeight: '600', opacity: isProcessing ? 0.7 : 1 }}
+            >
+              {isProcessing ? 'Sending…' : 'Send Recovery Email'}
+            </button>
+          </form>
+
+          <p style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+            Remembered your password?{' '}
+            <button type="button" onClick={() => setIsResettingPassword(false)} style={{ color: 'var(--accent-primary)', fontWeight: '500', textDecoration: 'underline' }}>
+              Sign In
+            </button>
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   // ── Login form ─────────────────────────────────────────────────────────────
   if (!isRegistering) {
     return (
@@ -143,7 +198,12 @@ export default function Login() {
               <input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" required style={inputStyle} />
             </div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-              <label style={labelStyle}>Password</label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
+                <button type="button" onClick={() => setIsResettingPassword(true)} style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                  Forgot?
+                </button>
+              </div>
               <input id="auth-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required style={inputStyle} />
             </div>
 
