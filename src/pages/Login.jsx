@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../constants/roles';
 import toast from 'react-hot-toast';
 import { Info } from 'lucide-react';
+import PlexusBackground from '../components/PlexusBackground';
 
 // ── Tooltip content per field ─────────────────────────────────────────────
 const TOOLTIPS = {
@@ -121,7 +122,7 @@ export default function Login() {
   // ── After successful registration ──────────────────────────────────────────
   if (signupDone) {
     return (
-      <div style={pageWrap}>
+      <PageWrapper>
         <div className="glass-panel" style={{ width: '100%', maxWidth: '440px', padding: '2.5rem', textAlign: 'center' }}>
           <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg,rgba(245,158,11,0.2),rgba(245,158,11,0.05))', border: '2px solid rgba(245,158,11,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '2rem', animation: 'pulse 2s infinite' }}>
             ⏳
@@ -139,14 +140,14 @@ export default function Login() {
             Back to Login
           </button>
         </div>
-      </div>
+      </PageWrapper>
     );
   }
 
   // ── Forgot Password form ───────────────────────────────────────────────────
   if (isResettingPassword) {
     return (
-      <div style={pageWrap}>
+      <PageWrapper>
         <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem' }}>
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
@@ -176,14 +177,14 @@ export default function Login() {
             </button>
           </p>
         </div>
-      </div>
+      </PageWrapper>
     );
   }
 
   // ── Login form ─────────────────────────────────────────────────────────────
   if (!isRegistering) {
     return (
-      <div style={pageWrap}>
+      <PageWrapper>
         <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem' }}>
           <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
             <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
@@ -222,13 +223,13 @@ export default function Login() {
             </button>
           </p>
         </div>
-      </div>
+      </PageWrapper>
     );
   }
 
   // ── Register form ──────────────────────────────────────────────────────────
   return (
-    <div style={pageWrap}>
+    <PageWrapper>
       <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '2.5rem' }}>
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
@@ -339,7 +340,7 @@ export default function Login() {
           </button>
         </p>
       </div>
-    </div>
+    </PageWrapper>
   );
 }
 
@@ -362,10 +363,16 @@ function InfoRow({ label, value }) {
   );
 }
 
-const pageWrap = {
-  display: 'flex', justifyContent: 'center', alignItems: 'center',
-  minHeight: '100vh', padding: '20px', background: 'var(--bg-primary)',
-};
+function PageWrapper({ children }) {
+  return (
+    <div className="login-container">
+      <PlexusBackground />
+      <div className="login-content">
+        {children}
+      </div>
+    </div>
+  );
+}
 const inputStyle = {
   padding: '0.75rem 1rem', borderRadius: '8px',
   border: '1px solid var(--border-color)', background: 'var(--bg-tertiary)',

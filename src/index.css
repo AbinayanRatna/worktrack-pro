@@ -335,3 +335,25 @@ button {
     padding: 1.25rem !important; /* Force tighter padding on panels inside mobile */
   }
 }
+
+/* ── Login Background Animation ─────────────────────────────────────────── */
+.login-container {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  padding: 20px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
+}
+
+
+
+.login-content {
+  position: relative;
+  z-index: 10;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
