@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ROLES } from '../constants/roles';
 import toast from 'react-hot-toast';
-import { Info } from 'lucide-react';
+import { Info, Eye, EyeOff } from 'lucide-react';
 import PlexusBackground from '../components/PlexusBackground';
 
 // ── Tooltip content per field ─────────────────────────────────────────────
@@ -47,6 +47,8 @@ export default function Login() {
   const [focusedField, setFocusedField] = useState(null);
   const [isResettingPassword, setIsResettingPassword] = useState(false);
   const [resetEmail, setResetEmail] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const { login, signup, resetPassword } = useAuth();
   const navigate = useNavigate();
@@ -94,6 +96,7 @@ export default function Login() {
   function resetForm() {
     setEmail(''); setPassword(''); setConfirmPassword('');
     setName(''); setRole(''); setSignupDone(false);
+    setShowPassword(false); setShowConfirmPassword(false);
   }
 
   function getFriendlyErrorMessage(error) {
@@ -205,7 +208,12 @@ export default function Login() {
                   Forgot?
                 </button>
               </div>
-              <input id="auth-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required style={inputStyle} />
+              <div style={{ position: 'relative' }}>
+                <input id="auth-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required style={{ ...inputStyle, paddingRight: '2.5rem' }} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             <button
@@ -274,13 +282,18 @@ export default function Login() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
             <label style={labelStyle}>Password</label>
             <div className="tooltip-wrapper">
-              <input
-                id="signup-password" type="password" value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                onFocus={() => setFocusedField('password')}
-                onBlur={() => setFocusedField(null)}
-                placeholder="Min. 8 characters" required style={inputStyle}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="signup-password" type={showPassword ? 'text' : 'password'} value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onFocus={() => setFocusedField('password')}
+                  onBlur={() => setFocusedField(null)}
+                  placeholder="Min. 8 characters" required style={{ ...inputStyle, paddingRight: '2.5rem' }}
+                />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               {focusedField === 'password' && <Tooltip text={TOOLTIPS.password} />}
             </div>
           </div>
@@ -289,13 +302,18 @@ export default function Login() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
             <label style={labelStyle}>Confirm Password</label>
             <div className="tooltip-wrapper">
-              <input
-                id="signup-confirm-password" type="password" value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                onFocus={() => setFocusedField('confirmPassword')}
-                onBlur={() => setFocusedField(null)}
-                placeholder="Re-enter your password" required style={inputStyle}
-              />
+              <div style={{ position: 'relative' }}>
+                <input
+                  id="signup-confirm-password" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  onFocus={() => setFocusedField('confirmPassword')}
+                  onBlur={() => setFocusedField(null)}
+                  placeholder="Re-enter your password" required style={{ ...inputStyle, paddingRight: '2.5rem' }}
+                />
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
               {focusedField === 'confirmPassword' && <Tooltip text={TOOLTIPS.confirmPassword} />}
             </div>
           </div>
