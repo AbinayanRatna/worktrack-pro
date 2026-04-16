@@ -10,9 +10,7 @@ import TaskHistory from './pages/TaskHistory';
 import Users from './pages/Users';
 import SignupRequests from './pages/SignupRequests';
 import ProtectedRoute from './components/ProtectedRoute';
-
-const APPROVER_ROLES = ['Director', 'Operation Manager', 'Manager - Technical Architect'];
-const ROLE_CHANGER_ROLES = ['Director', 'Manager - Technical Architect'];
+import { APPROVER_ROLES, ROLE_CHANGER_ROLES } from './constants/roles';
 
 function App() {
   return (
