@@ -24,10 +24,14 @@ export const APPROVER_ROLES = [
 ];
 
 /** Roles that can change other users' roles */
-export const ROLE_CHANGER_ROLES = ['Director', 'Manager - Technical Architect'];
+export const ROLE_CHANGER_ROLES = ['Director', 'Operation Manager', 'Manager - Technical Architect'];
 
 /** Roles that can assign tasks to any user (excluding Op Manager) */
-export const FULL_ASSIGN_ROLES = ['Director', 'Manager - Technical Architect'];
+export const FULL_ASSIGN_ROLES = [
+  'Director',
+  'Operation Manager',
+  'Manager - Technical Architect',
+];
 
 /** Roles where daily task tracking is enforced ("No Task Today" alerts) */
 export const DAILY_TASK_ROLES = [
@@ -37,13 +41,13 @@ export const DAILY_TASK_ROLES = [
 ];
 
 /** Roles that can close or reopen tasks (beyond the assigned reviewer) */
-export const CLOSE_REOPEN_ROLES = ['Director', 'Manager - Technical Architect'];
+export const CLOSE_REOPEN_ROLES = ['Director', 'Operation Manager', 'Manager - Technical Architect'];
 
 /** Roles that can change dueDate after task creation (beyond reviewer) */
-export const DATE_CHANGE_ROLES = ['Director', 'Manager - Technical Architect'];
+export const DATE_CHANGE_ROLES = ['Director', 'Operation Manager', 'Manager - Technical Architect'];
 
 /** Roles that can delete tasks (beyond reviewer) */
-export const TASK_DELETE_ROLES = ['Director', 'Manager - Technical Architect'];
+export const TASK_DELETE_ROLES = ['Director', 'Operation Manager', 'Manager - Technical Architect'];
 
 /** Roles that can BE assigned tasks (Op Manager excluded) */
 export const ASSIGNABLE_ROLES = [
@@ -61,7 +65,7 @@ export const SE_ASSIGNABLE_TO = ['Associate Software Engineer', 'SE Intern'];
 
 /** Can this role create/assign tasks at all? */
 export function canCreateTask(role) {
-  return role !== 'Operation Manager';
+  return true;
 }
 
 /**
@@ -72,7 +76,7 @@ export function canCreateTask(role) {
 export function getAssignableUsers(users, currentUser) {
   if (!currentUser) return [];
   const { role, id } = currentUser;
-  if (role === 'Operation Manager') return [];
+  
   if (FULL_ASSIGN_ROLES.includes(role)) {
     return users.filter((u) => u.role !== 'Operation Manager');
   }
@@ -96,8 +100,9 @@ export function canDeleteTask(role, isReviewer) {
 }
 
 /** Can this role/user close or reopen a task? */
-export function canCloseOrReopen(role, isReviewer) {
-  return CLOSE_REOPEN_ROLES.includes(role) || isReviewer;
+export function canCloseOrReopen(role, isReviewer, isAssigner) {
+  // Only the reviewer or the person who assigned the task can add a review/close/reopen
+  return isReviewer || isAssigner;
 }
 
 /** Can this role/user change the due date after creation? */

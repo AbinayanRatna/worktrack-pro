@@ -63,7 +63,8 @@ export default function TaskReview() {
   const userName = (userId) => users.find((u) => u.id === userId)?.name || '—';
   const meta = task ? (STATUS_META[task.status] || STATUS_META['Open']) : null;
   const isReviewer = task?.reviewer === uid;
-  const canCR = task && canCloseOrReopen(role, isReviewer);
+  const isAssigner = task?.assignedBy === uid;
+  const canCR = task && canCloseOrReopen(role, isReviewer, isAssigner);
   
   const latestSubmission = (task?.submissions && task.submissions.length > 0) 
     ? task.submissions[task.submissions.length - 1] 

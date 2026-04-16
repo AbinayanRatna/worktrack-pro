@@ -62,8 +62,9 @@ export default function TaskDetail() {
   const isNew = id === 'new';
   const isReviewer  = task?.reviewer  === uid;
   const isAssignee  = task?.assignedTo === uid;
+  const isAssigner  = task?.assignedBy === uid;
   const canDelete   = task && canDeleteTask(role, isReviewer);
-  const canCR       = task && canCloseOrReopen(role, isReviewer);
+  const canCR       = task && canCloseOrReopen(role, isReviewer, isAssigner);
   const canDateEdit = task && canChangeDueDate(role, isReviewer);
 
   const assignableUsers = getAssignableUsers(users, userProfile);
@@ -111,8 +112,8 @@ export default function TaskDetail() {
   // ── CREATE TASK ──────────────────────────────────────────────────────────────
   async function handleCreate(e) {
     e.preventDefault();
-    if (title.length > 30) {
-      setTitleError('Title must be 30 characters or fewer.'); return;
+    if (title.length > 50) {
+      setTitleError('Title must be 50 characters or fewer.'); return;
     }
     if (!reviewer) { toast.error('Reviewer is required.'); return; }
     if (!assignedTo) { toast.error('Please select someone to assign the task to.'); return; }
@@ -201,17 +202,17 @@ export default function TaskDetail() {
                 <div>
                   <label style={labelSt}>Title <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
-                    type="text" value={title} required maxLength={30}
+                    type="text" value={title} required maxLength={50}
                     onChange={(e) => {
                       setTitle(e.target.value);
-                      setTitleError(e.target.value.length > 30 ? 'Title max 30 characters.' : '');
+                      setTitleError(e.target.value.length > 50 ? 'Title max 50 characters.' : '');
                     }}
-                    placeholder="Short task title (max 30 characters)"
+                    placeholder="Short task title (max 50 characters)"
                     style={{ ...inputSt, borderColor: titleError ? 'var(--danger)' : 'var(--border-color)', fontSize: '1.1rem', padding: '1rem' }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
                     {titleError ? <p style={{ color: 'var(--danger)', fontSize: '0.8rem', margin: 0 }}>{titleError}</p> : <span/>}
-                    <p style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', margin: 0 }}>{title.length}/30</p>
+                    <p style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', margin: 0 }}>{title.length}/50</p>
                   </div>
                 </div>
                 <div>

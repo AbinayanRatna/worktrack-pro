@@ -226,7 +226,7 @@ export default function Login() {
 
           <p style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
             Don't have an account?{' '}
-            <button type="button" onClick={() => setIsRegistering(true)} style={{ color: 'var(--accent-primary)', fontWeight: '500', textDecoration: 'underline' }}>
+            <button type="button" onClick={() => { resetForm(); setIsRegistering(true); }} style={{ color: 'var(--accent-primary)', fontWeight: '500', textDecoration: 'underline' }}>
               Create account
             </button>
           </p>

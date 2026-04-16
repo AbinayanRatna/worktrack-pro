@@ -9,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
+import KanbanBoard from '../components/KanbanBoard';
 import toast from 'react-hot-toast';
 import {
   isManager, requiresDailyTask, canCreateTask,
@@ -54,11 +55,20 @@ export default function Tasks() {
   const manager = isManager(role);
   const canCreate = canCreateTask(role);
 
+  const [showKanban, setShowKanban] = useState(() => {
+    return sessionStorage.getItem('preferredTaskView') === 'kanban';
+  });
+
+  const toggleKanban = (val) => {
+    setShowKanban(val);
+    sessionStorage.setItem('preferredTaskView', val ? 'kanban' : 'list');
+  };
+
   // Tabs
   const tabs = [
     { key: 'mine',   label: 'My Tasks',        icon: <CheckSquare size={16} /> },
-    { key: 'review', label: 'Needs My Review',  icon: <Eye size={16} /> },
-    ...(manager ? [{ key: 'team', label: 'Team Dashboard', icon: <LayoutGrid size={16} /> }] : []),
+    { key: 'review', label: 'Review tasks', icon: <Eye size={16} /> },
+    ...(manager ? [{ key: 'team', label: 'All Tasks', icon: <LayoutGrid size={16} /> }] : []),
   ];
   const [activeTab, setActiveTab] = useState('mine');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -87,7 +97,7 @@ export default function Tasks() {
 
   // ── Derived lists ─────────────────────────────────────────────────────────────
   const myTasks     = tasks.filter((t) => t.assignedTo === uid);
-  const reviewTasks = tasks.filter((t) => t.reviewer   === uid);
+  const reviewTasks = tasks.filter((t) => t.reviewer === uid || t.assignedBy === uid);
 
   // For team tab: all tasks that are assigned to non-manager users (daily task roles)
   const teamTasks = tasks.filter((t) => {
@@ -274,6 +284,17 @@ export default function Tasks() {
   // ── Render ────────────────────────────────────────────────────────────────────
   return (
     <Layout>
+      {showKanban && (
+        <KanbanBoard 
+          tasks={tasks} 
+          role={role} 
+          uid={uid} 
+          onClose={() => { toggleKanban(false); fetchData(); }} 
+          onRefresh={fetchData}
+          usersList={users} 
+        />
+      )}
+      
       {/* Page header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
         <div>
@@ -281,6 +302,19 @@ export default function Tasks() {
           <p style={{ color: 'var(--text-secondary)' }}>Track and manage work across your team.</p>
         </div>
         <div style={{ display: 'flex', gap: '0.65rem' }}>
+          <button onClick={() => toggleKanban(true)} className="btn btn-secondary desktop-only" title="Open Kanban View" style={{ display: 'none' }}>
+            <LayoutGrid size={16} />
+            <span>Kanban View</span>
+          </button>
+          <style>{`
+            @media (min-width: 1024px) {
+              .desktop-only-kanban { display: flex !important; }
+            }
+          `}</style>
+          <button onClick={() => toggleKanban(true)} className="btn btn-secondary desktop-only-kanban" title="Open Kanban View" style={{ display: 'none', alignItems: 'center', gap: '0.4rem' }}>
+            <LayoutGrid size={16} />
+            <span>Kanban View</span>
+          </button>
           <button onClick={fetchData} className="btn btn-secondary" title="Refresh tasks">
             <RefreshCw size={16} />
             <span className="desktop-only">Refresh</span>
