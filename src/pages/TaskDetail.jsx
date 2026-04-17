@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import Layout from '../components/Layout';
 import { db } from '../firebase';
 import {
-  collection, getDocs, getDoc, addDoc, updateDoc, deleteDoc,
+  collection, getDocs, getDoc, addDoc, updateDoc,
   doc, serverTimestamp,
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
@@ -16,6 +16,8 @@ import toast from 'react-hot-toast';
 import { X, Send, CheckCircle, RotateCcw, Trash2, AlertCircle, ArrowLeft } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
+const inputClass = 'w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-4 py-3.5 text-[0.95rem] text-white outline-none resize-y';
+const labelClass = 'mb-2 block text-[0.82rem] font-medium uppercase tracking-[0.04em] text-[var(--text-secondary)]';
 
 // ── Format timestamp ───────────────────────────────────────────────────────────
 function fmt(iso) {
@@ -30,6 +32,10 @@ function todayStr() {
   return new Intl.DateTimeFormat('en-CA', {
     timeZone: 'Asia/Colombo', year: 'numeric', month: '2-digit', day: '2-digit',
   }).format(new Date());
+}
+
+function isBeforeYmd(a, b) {
+  return a < b;
 }
 
 export default function TaskDetail() {
@@ -63,7 +69,7 @@ export default function TaskDetail() {
   const isReviewer  = task?.reviewer  === uid;
   const isAssignee  = task?.assignedTo === uid;
   const isAssigner  = task?.assignedBy === uid;
-  const canDelete   = task && canDeleteTask(role, isReviewer);
+  const canDelete   = task && canDeleteTask(role, isAssigner);
   const canCR       = task && canCloseOrReopen(role, isReviewer, isAssigner);
   const canDateEdit = task && canChangeDueDate(role, isReviewer);
 
@@ -92,7 +98,7 @@ export default function TaskDetail() {
         // Init create form
         setTitle(''); setDescription('');
         setAssignedTo(canCreateTask(role) && getAssignableUsers(fetchedUsers, userProfile).length > 0 ? (uid || '') : '');
-        setReviewer(''); setDateAssigned(todayStr()); setDueDate('');
+        setReviewer(''); setDateAssigned(todayStr()); setDueDate(todayStr());
         setTitleError('');
       }
     } catch (err) {
@@ -112,11 +118,16 @@ export default function TaskDetail() {
   // ── CREATE TASK ──────────────────────────────────────────────────────────────
   async function handleCreate(e) {
     e.preventDefault();
+    const today = todayStr();
     if (title.length > 50) {
       setTitleError('Title must be 50 characters or fewer.'); return;
     }
     if (!reviewer) { toast.error('Reviewer is required.'); return; }
     if (!assignedTo) { toast.error('Please select someone to assign the task to.'); return; }
+    if (!dateAssigned) { toast.error('Assigned date is required.'); return; }
+    if (!dueDate) { toast.error('Due date is required.'); return; }
+    if (isBeforeYmd(dateAssigned, today)) { toast.error('Assigned date cannot be before today.'); return; }
+    if (isBeforeYmd(dueDate, today)) { toast.error('Due date cannot be before today.'); return; }
     try {
       setIsSaving(true);
       await addDoc(collection(db, 'tasks'), {
@@ -126,7 +137,7 @@ export default function TaskDetail() {
         assignedBy: uid,
         reviewer,
         dateAssigned,
-        dueDate: dueDate || dateAssigned,
+        dueDate,
         status: 'Open',
         submissions: [],
         createdAt: serverTimestamp(),
@@ -143,11 +154,19 @@ export default function TaskDetail() {
 
   // ── DELETE TASK ──────────────────────────────────────────────────────────────
   async function handleDelete() {
-    if (!window.confirm(`Permanently delete "${task.title}"? This cannot be undone.`)) return;
+    if (task?.status === 'Deleted') {
+      toast('This task is already in Deleted tab.');
+      return;
+    }
+    if (!window.confirm(`Move "${task.title}" to Deleted tasks? You can permanently delete it later from the Deleted tab.`)) return;
     try {
       setIsSaving(true);
-      await deleteDoc(doc(db, 'tasks', task.id));
-      toast.success('Task deleted.');
+      await updateDoc(doc(db, 'tasks', task.id), {
+        status: 'Deleted',
+        deletedAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+      toast.success('Task moved to Deleted tab.');
       navigate('/');
     } catch (err) {
       toast.error('Error: ' + err.message);
@@ -183,24 +202,24 @@ export default function TaskDetail() {
   return (
     <Layout>
       {/* Back button & header alignment */}
-      <div className="page-header" style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <button onClick={() => navigate('/')} className="btn" style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+      <div className="page-header mb-6 flex items-center gap-4">
+        <button onClick={() => navigate('/')} className="btn flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5 py-1.5 text-[var(--text-secondary)]">
           <ArrowLeft size={18} />
         </button>
-        <h1 style={{ margin: 0 }}>
+        <h1 className="m-0">
           {isNew ? 'Create New Task' : 'Task Details'}
         </h1>
       </div>
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem', height: '100%' }}>
+      <div className="flex h-full flex-col gap-8">
         {/* ── CREATE MODE ────────────────────────────────────────────────────── */}
         {isNew && (
-          <div style={{ flex: 1 }}>
-            <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem', minHeight: '600px', height: '100%' }}>
+          <div className="flex-1">
+            <form onSubmit={handleCreate} className="flex h-full min-h-[600px] flex-col gap-6">
               {/* Row 1: Title and Reviewer */}
               <div className="form-grid-2-1">
                 <div>
-                  <label style={labelSt}>Title <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <label className={labelClass}>Title <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
                     type="text" value={title} required maxLength={50}
                     onChange={(e) => {
@@ -208,7 +227,8 @@ export default function TaskDetail() {
                       setTitleError(e.target.value.length > 50 ? 'Title max 50 characters.' : '');
                     }}
                     placeholder="Short task title (max 50 characters)"
-                    style={{ ...inputSt, borderColor: titleError ? 'var(--danger)' : 'var(--border-color)', fontSize: '1.1rem', padding: '1rem' }}
+                    className={`${inputClass} px-4 py-4 text-[1.1rem]`}
+                    style={{ borderColor: titleError ? 'var(--danger)' : 'var(--border-color)' }}
                   />
                   <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '5px' }}>
                     {titleError ? <p style={{ color: 'var(--danger)', fontSize: '0.8rem', margin: 0 }}>{titleError}</p> : <span/>}
@@ -216,8 +236,8 @@ export default function TaskDetail() {
                   </div>
                 </div>
                 <div>
-                  <label style={labelSt}>Reviewer <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select value={reviewer} onChange={(e) => setReviewer(e.target.value)} required style={{ ...inputSt, padding: '1rem', fontSize: '1.1rem' }}>
+                  <label className={labelClass}>Reviewer <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <select value={reviewer} onChange={(e) => setReviewer(e.target.value)} required className={`${inputClass} px-4 py-4 text-[1.1rem]`}>
                     <option value="">Select reviewer…</option>
                     {users.map((u) => (
                       <option key={u.id} value={u.id}>{u.name}</option>
@@ -229,8 +249,8 @@ export default function TaskDetail() {
               {/* Row 2: Assigned To, Date Assigned, Due Date */}
               <div className="form-grid-3">
                 <div>
-                  <label style={labelSt}>Assigned To <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} required style={inputSt}>
+                  <label className={labelClass}>Assigned To <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} required className={inputClass}>
                     <option value="">Select person…</option>
                     {assignableUsers.map((u) => (
                       <option key={u.id} value={u.id}>{u.name}</option>
@@ -238,26 +258,27 @@ export default function TaskDetail() {
                   </select>
                 </div>
                 <div>
-                  <label style={labelSt}>Date Assigned</label>
-                  <input type="date" value={dateAssigned} onChange={(e) => setDateAssigned(e.target.value)} style={inputSt} />
+                  <label className={labelClass}>Date Assigned <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <input type="date" value={dateAssigned} min={todayStr()} required onChange={(e) => setDateAssigned(e.target.value)} className={inputClass} />
                 </div>
                 <div>
-                  <label style={labelSt}>Due Date</label>
-                  <input type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} style={inputSt} />
+                  <label className={labelClass}>Due Date <span style={{ color: 'var(--danger)' }}>*</span></label>
+                  <input type="date" value={dueDate} min={todayStr()} required onChange={(e) => setDueDate(e.target.value)} className={inputClass} />
                 </div>
               </div>
 
               {/* Row 3: Description */}
-              <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1 }}>
-                <label style={labelSt}>Description <span style={{ color: 'var(--danger)' }}>*</span></label>
+              <div className="flex grow flex-col">
+                <label className={labelClass}>Description <span style={{ color: 'var(--danger)' }}>*</span></label>
                 <textarea 
                   value={description} required onChange={(e) => setDescription(e.target.value)} 
                   placeholder="Detailed task description…" 
-                  style={{ ...inputSt, fontSize: '1rem', flexGrow: 1, minHeight: '300px' }} 
+                  className={`${inputClass} grow text-base`} 
+                  style={{ minHeight: '300px' }}
                 />
               </div>
 
-              <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: '1.5rem', marginTop: 'auto' }}>
+              <div className="mt-auto border-t border-[var(--border-color)] pt-6">
                 <button type="submit" className="btn btn-primary" disabled={isSaving || !!titleError} style={{ padding: '0.875rem 2rem', opacity: isSaving ? 0.7 : 1, fontSize: '1rem' }}>
                   {isSaving ? 'Creating…' : 'Create Task'}
                 </button>
@@ -268,76 +289,76 @@ export default function TaskDetail() {
 
         {/* ── DETAIL/EDIT MODE ────────────────────────────────────────────────── */}
         {!isNew && task && (
-          <div style={{ display: 'flex', flexDirection: 'row', gap: '2rem', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+          <div className="flex flex-row flex-wrap items-start gap-8">
             
-            <div style={{ width: '100%', maxWidth: '1000px', display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+            <div className="flex w-full max-w-[1000px] flex-col gap-8">
               
               {/* Header info */}
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap', marginBottom: '0.75rem' }}>
+                <div className="mb-3 flex flex-wrap items-center gap-3">
                   <span className="status-badge" style={{ background: meta.bg, color: meta.color, fontSize: '0.8rem', padding: '4px 12px' }}>
                     {task.status}
                   </span>
                 </div>
-                <h2 style={{ fontSize: '2rem', fontWeight: 'bold', lineHeight: '1.3', marginBottom: '1rem' }}>{task.title}</h2>
+                <h2 className="mb-4 text-[2rem] font-bold leading-[1.3]">{task.title}</h2>
               </div>
 
               {/* Top Action Bar */}
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', flexWrap: 'wrap', marginTop: '-0.85rem' }}>
+              <div className="-mt-3.5 flex flex-wrap items-center gap-2.5">
                 
                 {/* 1. Add Submission (Primary Active) */}
                 {isAssignee && (task.status === 'Open' || task.status === 'ReOpen') && (
-                  <button onClick={() => navigate(`/task/${task.id}/submit`)} className="btn btn-primary" style={{ padding: '0.55rem 1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.9rem' }}>
+                  <button onClick={() => navigate(`/task/${task.id}/submit`)} className="btn btn-primary flex items-center gap-2 px-4.5 py-2 text-[0.9rem]">
                     <Send size={16} /> Add Submission
                   </button>
                 )}
 
                 {/* 2. Review Task (Primary Active) */}
                 {canCR && task.status === 'Sent for Review' && (
-                  <button onClick={() => navigate(`/task/${task.id}/review`)} className="btn" style={{ padding: '0.55rem 1.1rem', background: 'var(--status-review-color)', color: 'white', display: 'flex', alignItems: 'center', gap: '0.5rem', border: 'none', fontSize: '0.9rem' }}>
+                  <button onClick={() => navigate(`/task/${task.id}/review`)} className="btn flex items-center gap-2 border-0 px-4.5 py-2 text-[0.9rem] text-white" style={{ background: 'var(--status-review-color)' }}>
                     <CheckCircle size={16} /> Review Submission
                   </button>
                 )}
 
                 {/* 3. View History */}
                 {(task.submissions?.length > 0) && (
-                  <button onClick={() => navigate(`/task/${task.id}/history`)} className="btn" style={{ padding: '0.55rem 1rem', border: '1px solid var(--border-color)', background: 'var(--bg-secondary)', color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem' }}>
+                  <button onClick={() => navigate(`/task/${task.id}/history`)} className="btn flex items-center gap-2 border border-[var(--border-color)] bg-[var(--bg-secondary)] px-4 py-2 text-[0.85rem] text-[var(--text-primary)]">
                     View Submission History
                   </button>
                 )}
 
                 {/* 4. Delete */}
-                {canDelete && (
-                  <button className="btn btn-danger" onClick={handleDelete} disabled={isSaving} style={{ padding: '0.55rem 1rem', display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.85rem' }}>
-                    <Trash2 size={14} /> {isSaving ? 'Deleting…' : 'Delete Task'}
+                {canDelete && task.status !== 'Deleted' && (
+                  <button className="btn btn-danger flex items-center gap-2 px-4 py-2 text-[0.85rem]" onClick={handleDelete} disabled={isSaving}>
+                    <Trash2 size={14} /> {isSaving ? 'Deleting…' : 'Move to Deleted'}
                   </button>
                 )}
               </div>
 
               {/* Task Meta block */}
-              <div style={{ background: 'var(--bg-tertiary)', border: '1px solid var(--border-color)', borderRadius: '10px', padding: '1.5rem' }}>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', fontSize: '0.9rem' }}>
+              <div className="rounded-[10px] border border-[var(--border-color)] bg-[var(--bg-tertiary)] p-6">
+                <div className="grid gap-6 text-[0.9rem]" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                   <InfoRow label="Assigned To">{userName(task.assignedTo)}</InfoRow>
                   <InfoRow label="Reviewer"><span style={{ color: 'var(--status-review-color)' }}>{userName(task.reviewer)}</span></InfoRow>
                   <InfoRow label="Date Assigned">{task.dateAssigned || '—'}</InfoRow>
                   <InfoRow label="Due Date">
                     {editingDueDate ? (
-                      <span style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
-                        <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} style={{ ...inputSt, padding: '0.3rem 0.5rem', fontSize: '0.85rem', marginBottom: 0 }} />
-                        <button onClick={handleSaveDueDate} disabled={isSaving} className="btn btn-primary" style={{ padding: '0.3rem 0.6rem', fontSize: '0.8rem' }}>Save</button>
-                        <button onClick={() => setEditingDueDate(false)} style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', cursor: 'pointer', background: 'none', border: 'none' }}>Cancel</button>
+                      <span className="flex items-center gap-2">
+                        <input type="date" value={editDueDate} onChange={(e) => setEditDueDate(e.target.value)} className="w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-2 py-1 text-[0.85rem] text-white" />
+                        <button onClick={handleSaveDueDate} disabled={isSaving} className="btn btn-primary px-2.5 py-1 text-[0.8rem]">Save</button>
+                        <button onClick={() => setEditingDueDate(false)} className="border-0 bg-transparent text-[0.8rem] text-[var(--text-secondary)]">Cancel</button>
                       </span>
                     ) : (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span className="flex items-center gap-2">
                         {task.dueDate || '—'}
                         {canDateEdit && (
-                          <button onClick={() => setEditingDueDate(true)} style={{ color: 'var(--accent-primary)', fontSize: '0.8rem', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer' }}>Edit</button>
+                          <button onClick={() => setEditingDueDate(true)} className="border-0 bg-transparent text-[0.8rem] text-[var(--accent-primary)] underline">Edit</button>
                         )}
                       </span>
                     )}
                   </InfoRow>
                   <InfoRow label="Description" fullWidth>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '500px', overflowY: 'auto', paddingRight: '1rem' }}>
+                    <div className="max-h-[500px] overflow-y-auto pr-4 text-base leading-[1.7] text-[var(--text-secondary)]" style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
                       {task.description}
                     </div>
                   </InfoRow>
@@ -347,9 +368,9 @@ export default function TaskDetail() {
 
               {/* ── Read-only note for others ────────────────────────────────── */}
               {!isAssignee && !canCR && (
-                <div style={{ padding: '1rem 1.25rem', background: 'var(--bg-secondary)', borderRadius: '8px', display: 'flex', alignItems: 'center', gap: '0.6rem', border: '1px dashed var(--border-color)', marginTop: '2rem' }}>
+                <div className="mt-8 flex items-center gap-2.5 rounded-lg border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-5 py-4">
                   <AlertCircle size={18} color="var(--text-tertiary)" />
-                  <span style={{ fontSize: '0.95rem', color: 'var(--text-tertiary)' }}>You are viewing this task in read-only mode.</span>
+                  <span className="text-[0.95rem] text-[var(--text-tertiary)]">You are viewing this task in read-only mode.</span>
                 </div>
               )}
 
@@ -367,9 +388,9 @@ export default function TaskDetail() {
 // ── Small reusable components ─────────────────────────────────────────────────
 function InfoRow({ label, children, fullWidth }) {
   return (
-    <div style={fullWidth ? { gridColumn: '1 / -1' } : {}}>
-      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: '4px' }}>{label}</span>
-      <span style={{ fontWeight: '500', fontSize: '0.95rem' }}>{children}</span>
+    <div className={fullWidth ? 'col-span-full' : ''}>
+      <span className="mb-1 block text-[0.75rem] uppercase tracking-[0.04em] text-[var(--text-secondary)]">{label}</span>
+      <span className="text-[0.95rem] font-medium">{children}</span>
     </div>
   );
 }
@@ -384,14 +405,3 @@ function Divider({ label, color }) {
   );
 }
 
-const inputSt = {
-  padding: '0.85rem 1rem', borderRadius: '8px',
-  border: '1px solid var(--border-color)', background: 'var(--bg-tertiary)',
-  color: 'white', fontSize: '0.95rem', outline: 'none',
-  width: '100%', resize: 'vertical', fontFamily: 'inherit',
-};
-const labelSt = {
-  display: 'block', fontSize: '0.82rem', fontWeight: '500',
-  color: 'var(--text-secondary)', textTransform: 'uppercase',
-  letterSpacing: '0.04em', marginBottom: '0.5rem',
-};

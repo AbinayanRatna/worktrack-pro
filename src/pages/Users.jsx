@@ -74,14 +74,14 @@ export default function Users() {
   return (
     <Layout>
       {/* Header */}
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>User Management</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>
+          <h1 className="mb-1 text-[2rem] font-bold">User Management</h1>
+          <p className="text-[var(--text-secondary)]">
             View all team members and change their roles.
           </p>
         </div>
-        <button onClick={fetchUsers} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <button onClick={fetchUsers} className="btn btn-secondary flex items-center gap-2">
           <RefreshCw size={16} /> Refresh
         </button>
       </div>
@@ -92,22 +92,18 @@ export default function Users() {
         placeholder="Search by name, email, or role…"
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{
-          width: '100%', padding: '0.75rem 1rem', borderRadius: '8px',
-          border: '1px solid var(--border-color)', background: 'var(--bg-tertiary)',
-          color: 'white', fontSize: '0.9rem', marginBottom: '1.5rem',
-        }}
+        className="mb-6 w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-4 py-3 text-[0.9rem] text-white outline-none"
       />
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '0.75rem', marginBottom: '1.75rem' }}>
+      <div className="mb-7 grid gap-3" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))' }}>
         {ROLES.filter((r) => r !== 'Operation Manager').map((role) => {
           const count = users.filter((u) => u.role === role).length;
           const color = ROLE_COLORS[role] || '#94a3b8';
           return (
-            <div key={role} style={{ padding: '0.75rem', background: 'var(--bg-secondary)', border: `1px solid ${color}22`, borderRadius: '10px' }}>
-              <div style={{ fontSize: '1.4rem', fontWeight: 'bold', color }}>{count}</div>
-              <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginTop: '2px' }}>{role.replace('Manager - Technical Architect', 'MTA').replace('Associate Software Engineer', 'ASE')}</div>
+            <div key={role} className="rounded-[10px] bg-[var(--bg-secondary)] p-3" style={{ border: `1px solid ${color}22` }}>
+              <div className="text-[1.4rem] font-bold" style={{ color }}>{count}</div>
+              <div className="mt-0.5 text-[0.68rem] text-[var(--text-secondary)]">{role.replace('Manager - Technical Architect', 'MTA').replace('Associate Software Engineer', 'ASE')}</div>
             </div>
           );
         })}
@@ -117,40 +113,40 @@ export default function Users() {
       {isLoading ? (
         <LoadingSpinner />
       ) : filtered.length === 0 ? (
-        <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-          <UsersIcon size={48} style={{ color: 'var(--text-secondary)', margin: '0 auto 1rem' }} />
-          <p style={{ color: 'var(--text-secondary)' }}>No users found.</p>
+        <div className="glass-panel px-8 py-16 text-center">
+          <UsersIcon size={48} className="mx-auto mb-4 text-[var(--text-secondary)]" />
+          <p className="text-[var(--text-secondary)]">No users found.</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+        <div className="flex flex-col gap-8">
           {Object.entries(grouped).map(([role, members]) => {
             const color = ROLE_COLORS[role] || '#94a3b8';
             return (
               <div key={role}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.75rem' }}>
-                  <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: color, flexShrink: 0 }} />
-                  <span style={{ fontWeight: '600', color }}>{role}</span>
-                  <span style={{ fontSize: '0.78rem', color: 'var(--text-tertiary)' }}>({members.length})</span>
+                <div className="mb-3 flex items-center gap-3">
+                  <div className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: color }} />
+                  <span className="font-semibold" style={{ color }}>{role}</span>
+                  <span className="text-[0.78rem] text-[var(--text-tertiary)]">({members.length})</span>
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <div className="flex flex-col gap-2">
                   {members.map((user) => {
                     const isSaving = savingId === user.id;
                     const isSelf = user.id === userProfile?.id;
                     return (
-                      <div key={user.id} className="glass-panel" style={{ padding: '1rem 1.25rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+                      <div key={user.id} className="glass-panel flex flex-wrap items-center gap-4 px-5 py-4">
                         {/* Avatar */}
                         <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: `linear-gradient(135deg, ${color}44, ${color}22)`, border: `2px solid ${color}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color, flexShrink: 0, fontSize: '1rem' }}>
                           {user.name?.charAt(0).toUpperCase()}
                         </div>
 
                         {/* Info */}
-                        <div style={{ flex: 1, minWidth: '150px' }}>
-                          <div style={{ fontWeight: '600', fontSize: '0.95rem' }}>
+                        <div className="min-w-[150px] flex-1">
+                          <div className="text-[0.95rem] font-semibold">
                             {user.name}
-                            {isSelf && <span style={{ marginLeft: '6px', fontSize: '0.7rem', color: 'var(--text-tertiary)' }}>(you)</span>}
+                            {isSelf && <span className="ml-1.5 text-[0.7rem] text-[var(--text-tertiary)]">(you)</span>}
                           </div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{user.email}</div>
+                          <div className="text-[0.8rem] text-[var(--text-secondary)]">{user.email}</div>
                         </div>
 
                         {/* Role selector */}
@@ -158,8 +154,8 @@ export default function Users() {
                           value={user.role}
                           onChange={(e) => handleRoleChange(user.id, e.target.value)}
                           disabled={isSaving || isSelf}
+                          className="rounded-lg px-3 py-1.5 text-[0.82rem] font-medium"
                           style={{
-                            padding: '0.4rem 0.75rem', borderRadius: '8px',
                             background: `${color}11`, border: `1px solid ${color}44`,
                             color, fontSize: '0.82rem', cursor: isSaving || isSelf ? 'not-allowed' : 'pointer',
                             opacity: isSaving ? 0.6 : 1, fontWeight: '500',
@@ -171,7 +167,7 @@ export default function Users() {
                             </option>
                           ))}
                         </select>
-                        {isSaving && <span style={{ fontSize: '0.75rem', color: 'var(--text-tertiary)' }}>Saving…</span>}
+                        {isSaving && <span className="text-[0.75rem] text-[var(--text-tertiary)]">Saving…</span>}
                       </div>
                     );
                   })}

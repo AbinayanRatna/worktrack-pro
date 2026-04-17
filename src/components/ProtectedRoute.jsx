@@ -21,19 +21,18 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   // ── Rejected ──────────────────────────────────────────────────────────────
   if (isRejected) {
     return (
-      <div style={fullPageCenter}>
-        <div style={iconCircle('var(--danger)', 'rgba(239,68,68,0.1)')}>✕</div>
-        <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', color: 'var(--danger)' }}>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--bg-primary)] p-8 text-center">
+        <div className="mx-auto flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-[var(--danger)] bg-red-500/10 text-3xl">✕</div>
+        <h2 className="text-[1.4rem] font-bold text-[var(--danger)]">
           Request Rejected
         </h2>
-        <p style={subText}>
+        <p className="max-w-[440px] leading-relaxed text-[var(--text-secondary)]">
           Unfortunately, your signup request was not approved. Please contact a
           Director or Manager for assistance.
         </p>
         <button
           onClick={() => logout().then(() => navigate('/login'))}
-          className="btn btn-secondary"
-          style={{ marginTop: '0.5rem' }}
+          className="btn btn-secondary mt-2"
         >
           Back to Login
         </button>
@@ -44,33 +43,28 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   // ── Pending approval ───────────────────────────────────────────────────────
   if (isPendingApproval) {
     return (
-      <div style={fullPageCenter}>
-        <div style={{ position: 'relative', width: '80px', height: '80px', margin: '0 auto' }}>
-          <div style={{
-            width: '80px', height: '80px', borderRadius: '50%',
-            border: '3px solid rgba(99,102,241,0.15)',
-            borderTopColor: 'var(--accent-primary)',
-            animation: 'spin 1.2s linear infinite',
-          }} />
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.75rem' }}>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--bg-primary)] p-8 text-center">
+        <div className="relative mx-auto h-20 w-20">
+          <div className="h-20 w-20 animate-spin rounded-full border-[3px] border-[rgba(99,102,241,0.15)] border-t-[var(--accent-primary)]" />
+          <div className="absolute inset-0 flex items-center justify-center text-[1.75rem]">
             ⏳
           </div>
         </div>
 
-        <h2 style={{ fontSize: '1.5rem', fontWeight: 'bold' }}>Awaiting Approval</h2>
-        <p style={subText}>
-          Hi <strong style={{ color: 'white' }}>{signupRequest?.name}</strong>, your account
+        <h2 className="text-2xl font-bold">Awaiting Approval</h2>
+        <p className="max-w-[440px] leading-relaxed text-[var(--text-secondary)]">
+          Hi <strong className="text-white">{signupRequest?.name}</strong>, your account
           request is pending review. You'll gain access once it's approved by a Director,
           Operation Manager, or Manager - Technical Architect.
         </p>
 
-        <div className="glass-panel" style={{ padding: '1rem 1.5rem', maxWidth: '360px', width: '100%', textAlign: 'left', marginTop: '0.5rem' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', fontSize: '0.875rem' }}>
+        <div className="glass-panel mt-2 w-full max-w-[360px] px-6 py-4 text-left">
+          <div className="flex flex-col gap-2.5 text-sm">
             <Row label="Name" value={signupRequest?.name} />
             <Row label="Email" value={signupRequest?.email} />
             <Row label="Requested Role" value={signupRequest?.role} />
             <Row label="Status">
-              <span style={{ padding: '2px 10px', borderRadius: '12px', background: 'rgba(245,158,11,0.15)', color: '#f59e0b', fontSize: '0.75rem', fontWeight: 'bold' }}>
+              <span className="rounded-xl bg-amber-500/15 px-2.5 py-[2px] text-[0.75rem] font-bold text-amber-500">
                 Pending
               </span>
             </Row>
@@ -79,8 +73,7 @@ export default function ProtectedRoute({ children, allowedRoles }) {
 
         <button
           onClick={() => logout().then(() => navigate('/login'))}
-          className="btn btn-secondary"
-          style={{ marginTop: '0.5rem' }}
+          className="btn btn-secondary mt-2"
         >
           Log Out
         </button>
@@ -91,9 +84,9 @@ export default function ProtectedRoute({ children, allowedRoles }) {
   // ── No profile (edge case) ─────────────────────────────────────────────────
   if (!userProfile) {
     return (
-      <div style={fullPageCenter}>
-        <h2 style={{ color: 'var(--warning)' }}>Profile Setup Incomplete</h2>
-        <p style={subText}>Your user profile is missing. Please contact your administrator.</p>
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[var(--bg-primary)] p-8 text-center">
+        <h2 className="text-[var(--warning)]">Profile Setup Incomplete</h2>
+        <p className="max-w-[440px] leading-relaxed text-[var(--text-secondary)]">Your user profile is missing. Please contact your administrator.</p>
         <button onClick={() => logout().then(() => navigate('/login'))} className="btn btn-secondary">
           Log Out
         </button>
@@ -112,26 +105,9 @@ export default function ProtectedRoute({ children, allowedRoles }) {
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function Row({ label, value, children }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem' }}>
-      <span style={{ color: 'var(--text-secondary)', flexShrink: 0 }}>{label}</span>
-      <span style={{ fontWeight: '500' }}>{children ?? value}</span>
+    <div className="flex items-center justify-between gap-4">
+      <span className="shrink-0 text-[var(--text-secondary)]">{label}</span>
+      <span className="font-medium">{children ?? value}</span>
     </div>
   );
-}
-
-const fullPageCenter = {
-  display: 'flex', flexDirection: 'column', alignItems: 'center',
-  justifyContent: 'center', minHeight: '100vh', gap: '1rem',
-  padding: '2rem', textAlign: 'center', background: 'var(--bg-primary)',
-};
-const subText = {
-  color: 'var(--text-secondary)', maxWidth: '440px', lineHeight: '1.6',
-};
-function iconCircle(borderColor, bg) {
-  return {
-    width: '72px', height: '72px', borderRadius: '50%',
-    background: bg, border: `2px solid ${borderColor}`,
-    display: 'flex', alignItems: 'center', justifyContent: 'center',
-    fontSize: '2rem', margin: '0 auto',
-  };
 }

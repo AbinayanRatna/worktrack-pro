@@ -1,3 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
 :root {
   --bg-primary: #0f1115;
   --bg-secondary: #1a1d24;
@@ -51,18 +56,17 @@ button {
   font-family: inherit;
   color: inherit;
 }
+}
+
+@layer components {
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */
 .app-container {
-  display: flex;
-  min-height: 100vh;
+  @apply flex min-h-screen;
 }
 
 .main-content {
-  flex-grow: 1;
-  padding: 2rem;
-  overflow-y: auto;
-  overflow-x: hidden;
+  @apply grow overflow-y-auto overflow-x-hidden p-8;
   margin-left: var(--nav-width);
 }
 
@@ -78,14 +82,7 @@ button {
 
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 .btn {
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.5rem;
+  @apply inline-flex items-center justify-center gap-2 rounded-md px-4 py-2 font-medium transition-all duration-200;
 }
 
 .btn-primary {
@@ -126,12 +123,7 @@ button {
 
 /* ── Loader ─────────────────────────────────────────────────────────────── */
 .loader-container {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  min-height: 200px;
-  width: 100%;
+  @apply flex min-h-[200px] w-full flex-col items-center justify-center;
 }
 
 .spinner {
@@ -145,14 +137,8 @@ button {
 
 /* ── Task card metadata row ─────────────────────────────────────────────── */
 .task-metadata-row {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1.5rem;
-  align-items: center;
-  font-size: 0.875rem;
-  padding: 0.65rem 0.9rem;
+  @apply flex flex-wrap items-center gap-6 rounded-lg px-4 py-3 text-sm;
   background-color: var(--bg-tertiary);
-  border-radius: 8px;
 }
 
 /* ── Tooltip for Login/Register ─────────────────────────────────────────── */
@@ -202,35 +188,28 @@ button {
 
 /* ── Status badge helper ─────────────────────────────────────────────────── */
 .status-badge {
-  padding: 2px 10px;
-  border-radius: 12px;
-  font-size: 0.7rem;
-  font-weight: 700;
-  white-space: nowrap;
+  @apply whitespace-nowrap rounded-xl px-[10px] py-[2px] text-[0.7rem] font-bold;
   letter-spacing: 0.02em;
 }
 
 /* ── Submission thread ───────────────────────────────────────────────────── */
 .submission-thread {
-  display: flex;
-  flex-direction: column;
-  gap: 0.85rem;
+  @apply flex flex-col gap-3.5;
 }
 
 .submission-round {
+  @apply overflow-hidden rounded-[10px];
   border: 1px solid var(--border-color);
-  border-radius: 10px;
-  overflow: hidden;
 }
 
 .submission-dev {
-  padding: 0.85rem 1rem;
+  @apply px-4 py-3.5;
   background: rgba(59, 130, 246, 0.06);
   border-bottom: 1px solid var(--border-color);
 }
 
 .submission-review {
-  padding: 0.85rem 1rem;
+  @apply px-4 py-3.5;
   background: rgba(245, 158, 11, 0.06);
 }
 
@@ -258,20 +237,19 @@ button {
 
 /* ── Responsive Grids & Components ──────────────────────────────────────── */
 .form-grid-2-1 {
-  display: grid;
+  @apply grid;
   grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
-  gap: 1.5rem;
+  @apply gap-6;
 }
 
 .form-grid-3 {
-  display: grid;
+  @apply grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 1.5rem;
+  @apply gap-6;
 }
 
 .auth-panel {
-  width: 100%;
-  padding: 2.5rem;
+  @apply w-full p-10;
 }
 
 .page-header h1 {
@@ -338,22 +316,13 @@ button {
 
 /* ── Login Background Animation ─────────────────────────────────────────── */
 .login-container {
-  position: relative;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
-  padding: 20px;
-  overflow: hidden;
+  @apply relative flex min-h-screen items-center justify-center overflow-hidden p-5;
   background: linear-gradient(135deg, #6366f1 0%, #3b82f6 100%);
 }
 
 
 
 .login-content {
-  position: relative;
-  z-index: 10;
-  width: 100%;
-  display: flex;
-  justify-content: center;
+  @apply relative z-10 flex w-full justify-center;
+}
 }

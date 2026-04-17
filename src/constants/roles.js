@@ -46,8 +46,8 @@ export const CLOSE_REOPEN_ROLES = ['Director', 'Operation Manager', 'Manager - T
 /** Roles that can change dueDate after task creation (beyond reviewer) */
 export const DATE_CHANGE_ROLES = ['Director', 'Operation Manager', 'Manager - Technical Architect'];
 
-/** Roles that can delete tasks (beyond reviewer) */
-export const TASK_DELETE_ROLES = ['Director', 'Operation Manager', 'Manager - Technical Architect'];
+/** Roles that can soft-delete any task */
+export const TASK_SOFT_DELETE_ANY_ROLES = ['Director', 'Manager - Technical Architect'];
 
 /** Roles that can BE assigned tasks (Op Manager excluded) */
 export const ASSIGNABLE_ROLES = [
@@ -94,9 +94,9 @@ export function canChangeRole(role) {
   return ROLE_CHANGER_ROLES.includes(role);
 }
 
-/** Can this role/user delete a task? */
-export function canDeleteTask(role, isReviewer) {
-  return TASK_DELETE_ROLES.includes(role) || isReviewer;
+/** Can this role/user soft-delete a task? */
+export function canDeleteTask(role, isAssigner) {
+  return TASK_SOFT_DELETE_ANY_ROLES.includes(role) || isAssigner;
 }
 
 /** Can this role/user close or reopen a task? */

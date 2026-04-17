@@ -1,9 +1,6 @@
 import React, { useState } from 'react';
-import { X, Calendar, User, LayoutGrid, RefreshCw } from 'lucide-react';
+import { X, LayoutGrid, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../firebase';
-import toast from 'react-hot-toast';
 import { STATUS_META } from '../pages/Tasks';
 
 export default function KanbanBoard({ tasks, role, uid, onClose, onRefresh, usersList }) {
@@ -28,8 +25,6 @@ export default function KanbanBoard({ tasks, role, uid, onClose, onRefresh, user
     return t.assignedTo === uid; 
   });
 
-  const columns = ['Open', 'Sent for Review', 'ReOpen', 'Closed']; // "ReOpen" before "Closed" usually visually in workflows. Let's arrange it: Open, Sent for Review, ReOpen, Closed.
-  // However user asked "the status should open, sent for review, closed, reopen".
   const orderedColumns = ['Open', 'Sent for Review', 'Closed', 'ReOpen'];
 
   const getColTasks = (col) => kanbanTasks.filter((t) => t.status === col);
@@ -40,11 +35,7 @@ export default function KanbanBoard({ tasks, role, uid, onClose, onRefresh, user
   };
 
   return (
-    <div style={{
-      position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-      backgroundColor: 'var(--bg-primary)', zIndex: 9999,
-      display: 'flex', flexDirection: 'column', 
-    }}>
+    <div className="fixed inset-0 z-[9999] flex flex-col bg-[var(--bg-primary)]">
       <style>{`
         @media (max-width: 1024px) {
           .kanban-view-container { display: none !important; }
@@ -52,38 +43,32 @@ export default function KanbanBoard({ tasks, role, uid, onClose, onRefresh, user
       `}</style>
       
       {/* Header */}
-      <div style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        padding: '1.25rem 2rem', borderBottom: '1px solid var(--border-color)',
-        backgroundColor: 'var(--bg-secondary)'
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+      <div className="flex items-center justify-between border-b border-[var(--border-color)] bg-[var(--bg-secondary)] px-8 py-5">
+        <div className="flex items-center gap-4">
           <LayoutGrid size={24} color="var(--accent-primary)" />
-          <h1 style={{ fontSize: '1.5rem', fontWeight: 'bold', margin: 0 }}>Kanban View</h1>
+          <h1 className="m-0 text-2xl font-bold">Kanban View</h1>
           
-          <div style={{ display: 'flex', background: 'var(--bg-tertiary)', borderRadius: '8px', padding: '4px', marginLeft: '2rem' }}>
+          <div className="ml-8 flex rounded-lg bg-[var(--bg-tertiary)] p-1">
             <button 
               onClick={() => setFilter('mine')}
-              style={{ 
-                padding: '6px 16px', borderRadius: '6px', border: 'none', 
+              className="rounded-md border-0 px-4 py-1.5"
+              style={{
                 background: filter === 'mine' ? 'var(--bg-primary)' : 'transparent',
                 color: filter === 'mine' ? 'var(--text-primary)' : 'var(--text-secondary)',
                 fontWeight: filter === 'mine' ? '600' : '400',
                 boxShadow: filter === 'mine' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                cursor: 'pointer'
               }}
             >
               My Tasks
             </button>
             <button 
               onClick={() => setFilter('review')}
+              className="rounded-md border-0 px-4 py-1.5"
               style={{ 
-                padding: '6px 16px', borderRadius: '6px', border: 'none', 
                 background: filter === 'review' ? 'var(--bg-primary)' : 'transparent',
                 color: filter === 'review' ? 'var(--text-primary)' : 'var(--text-secondary)',
                 fontWeight: filter === 'review' ? '600' : '400',
                 boxShadow: filter === 'review' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                cursor: 'pointer'
               }}
             >
               Review tasks
@@ -91,13 +76,12 @@ export default function KanbanBoard({ tasks, role, uid, onClose, onRefresh, user
             {isManagerMode && (
               <button 
                 onClick={() => setFilter('all')}
+                className="rounded-md border-0 px-4 py-1.5"
                 style={{ 
-                  padding: '6px 16px', borderRadius: '6px', border: 'none', 
                   background: filter === 'all' ? 'var(--bg-primary)' : 'transparent',
                   color: filter === 'all' ? 'var(--text-primary)' : 'var(--text-secondary)',
                   fontWeight: filter === 'all' ? '600' : '400',
                   boxShadow: filter === 'all' ? '0 1px 3px rgba(0,0,0,0.1)' : 'none',
-                  cursor: 'pointer'
                 }}
               >
                 All Tasks
@@ -105,13 +89,13 @@ export default function KanbanBoard({ tasks, role, uid, onClose, onRefresh, user
             )}
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '0.65rem' }}>
+        <div className="flex gap-2.5">
           <button 
             onClick={handleRefresh} 
             className="btn btn-secondary" 
             title="Refresh tasks"
             disabled={isRefreshing}
-            style={{ opacity: isRefreshing ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+            style={{ opacity: isRefreshing ? 0.7 : 1 }}
           >
             <RefreshCw size={16} className={isRefreshing ? "spin-animation" : ""} />
             <span>{isRefreshing ? 'Refreshing...' : 'Refresh'}</span>
@@ -120,20 +104,14 @@ export default function KanbanBoard({ tasks, role, uid, onClose, onRefresh, user
             @keyframes spin { 100% { transform: rotate(360deg); } }
             .spin-animation { animation: spin 1s linear infinite; }
           `}</style>
-          <button onClick={onClose} style={{ 
-            background: 'transparent', border: 'none', cursor: 'pointer', 
-            color: 'var(--text-secondary)', padding: '0.5rem'
-          }}>
+          <button onClick={onClose} className="border-0 bg-transparent p-2 text-[var(--text-secondary)]">
             <X size={28} />
           </button>
         </div>
       </div>
 
       {/* Board */}
-      <div style={{
-        flex: 1, padding: '1.5rem 2rem', display: 'flex', gap: '1.5rem', 
-        overflowX: 'auto', backgroundColor: 'var(--bg-primary)'
-      }} className="kanban-view-container">
+      <div className="kanban-view-container flex flex-1 gap-6 overflow-x-auto bg-[var(--bg-primary)] px-8 py-6">
         
         {orderedColumns.map(status => {
           const colTasks = getColTasks(status);
@@ -142,96 +120,79 @@ export default function KanbanBoard({ tasks, role, uid, onClose, onRefresh, user
           return (
             <div 
               key={status}
-              style={{
-                flex: '0 0 320px', display: 'flex', flexDirection: 'column',
-                backgroundColor: 'var(--bg-secondary)', borderRadius: '12px',
-                padding: '1rem', border: '1px solid var(--border-color)',
-              }}
+              className="flex w-[320px] shrink-0 flex-col rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] p-4"
             >
-              <div style={{ 
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', 
-                marginBottom: '1rem', paddingBottom: '0.75rem', borderBottom: '1px solid var(--border-color)' 
-              }}>
-                <h3 style={{ 
-                  fontSize: '1rem', fontWeight: '600', margin: 0, 
-                  color: meta.color, display: 'flex', alignItems: 'center', gap: '0.5rem' 
-                }}>
+              <div className="mb-4 flex items-center justify-between border-b border-[var(--border-color)] pb-3">
+                <h3 className="m-0 flex items-center gap-2 text-base font-semibold" style={{ color: meta.color }}>
                   <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: meta.color }} />
                   {status}
                 </h3>
-                <span style={{ 
-                  background: 'var(--bg-tertiary)', borderRadius: '12px', 
-                  padding: '2px 8px', fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-secondary)' 
-                }}>
+                <span className="rounded-xl bg-[var(--bg-tertiary)] px-2 py-[2px] text-[0.8rem] font-medium text-[var(--text-secondary)]">
                   {colTasks.length}
                 </span>
               </div>
               
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', overflowY: 'auto' }}>
+              <div className="flex flex-col gap-4 overflow-y-auto">
                 {colTasks.map(task => (
                   <div 
                     key={task.id}
                     onClick={() => navigate(`/task/${task.id}`, { state: { fromKanban: true } })}
-                    style={{
-                      background: 'var(--bg-primary)', padding: '1rem', borderRadius: '8px',
-                      border: '1px solid var(--border-color)', boxShadow: '0 2px 4px rgba(0,0,0,0.02)',
-                      cursor: 'pointer', transition: 'all 0.2s', display: 'flex', flexDirection: 'column', gap: '0.5rem'
-                    }}
+                    className="flex cursor-pointer flex-col gap-2 rounded-lg border border-[var(--border-color)] bg-[var(--bg-primary)] p-4 shadow-[0_2px_4px_rgba(0,0,0,0.02)] transition-all duration-200"
                     onMouseEnter={(e) => e.currentTarget.style.transform = 'translateY(-2px)'}
                     onMouseLeave={(e) => e.currentTarget.style.transform = 'translateY(0)'}
                   >
-                    <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '600', color: 'var(--text-primary)' }}>{task.title}</h4>
+                    <h4 className="m-0 text-[0.95rem] font-semibold text-[var(--text-primary)]">{task.title}</h4>
                     
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginTop: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                    <div className="mt-2 flex flex-col gap-1.5 text-[0.8rem] text-[var(--text-secondary)]">
                       {filter === 'mine' && (
                         <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 500 }}>By:</span>
+                          <div className="flex justify-between">
+                            <span className="font-medium">By:</span>
                             <span>{userName(task.assignedBy)}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 500 }}>Reviewer:</span>
+                          <div className="flex justify-between">
+                            <span className="font-medium">Reviewer:</span>
                             <span>{userName(task.reviewer)}</span>
                           </div>
                         </>
                       )}
                       {filter === 'review' && (
                         <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 500 }}>By:</span>
+                          <div className="flex justify-between">
+                            <span className="font-medium">By:</span>
                             <span>{userName(task.assignedBy)}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 500 }}>To:</span>
+                          <div className="flex justify-between">
+                            <span className="font-medium">To:</span>
                             <span>{userName(task.assignedTo)}</span>
                           </div>
                         </>
                       )}
                       {filter === 'all' && (
                         <>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 500 }}>By:</span>
+                          <div className="flex justify-between">
+                            <span className="font-medium">By:</span>
                             <span>{userName(task.assignedBy)}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 500 }}>To:</span>
+                          <div className="flex justify-between">
+                            <span className="font-medium">To:</span>
                             <span>{userName(task.assignedTo)}</span>
                           </div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                            <span style={{ fontWeight: 500 }}>Reviewer:</span>
+                          <div className="flex justify-between">
+                            <span className="font-medium">Reviewer:</span>
                             <span>{userName(task.reviewer)}</span>
                           </div>
                         </>
                       )}
                       
-                      <div style={{ height: '1px', background: 'var(--border-color)', margin: '0.2rem 0' }} />
+                      <div className="my-1 h-px bg-[var(--border-color)]" />
                       
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontWeight: 500 }}>On:</span>
+                      <div className="flex justify-between">
+                        <span className="font-medium">On:</span>
                         <span>{task.dateAssigned}</span>
                       </div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                        <span style={{ fontWeight: 500 }}>Due:</span>
+                      <div className="flex justify-between">
+                        <span className="font-medium">Due:</span>
                         <span>{task.dueDate}</span>
                       </div>
                     </div>

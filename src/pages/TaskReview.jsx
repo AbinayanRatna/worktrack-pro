@@ -112,10 +112,10 @@ export default function TaskReview() {
   if (!canCR) {
     return (
       <Layout>
-        <div style={{ textAlign: 'center', padding: '3rem' }}>
+        <div className="p-12 text-center">
           <h2>Access Denied</h2>
           <p>You do not have permission to review this task.</p>
-          <button className="btn" onClick={() => navigate(`/task/${task.id}`)} style={{ marginTop: '1rem' }}>Go Back</button>
+          <button className="btn mt-4" onClick={() => navigate(`/task/${task.id}`)}>Go Back</button>
         </div>
       </Layout>
     );
@@ -123,46 +123,46 @@ export default function TaskReview() {
 
   return (
     <Layout>
-      <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <button onClick={() => navigate(`/task/${task.id}`)} className="btn" style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+      <div className="mb-6 flex items-center gap-4">
+        <button onClick={() => navigate(`/task/${task.id}`)} className="btn flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5 py-1.5 text-[var(--text-secondary)]">
           <ArrowLeft size={18} />
         </button>
-        <h1 style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: 0 }}>Review Submission</h1>
+        <h1 className="m-0 text-[1.8rem] font-bold">Review Submission</h1>
       </div>
 
-      <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="mx-auto flex max-w-[1000px] flex-col gap-6">
         <TaskSummaryHeader task={task} userName={userName} meta={meta} />
 
         {latestSubmission && (
-          <div className="glass-panel" style={{ padding: '1.5rem', borderLeft: '4px solid var(--status-open-color)' }}>
-            <h3 style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.5rem' }}>Latest Developer Submission</h3>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)', marginBottom: '1rem' }}>Submitted by {userName(latestSubmission.submittedBy)} on {fmt(latestSubmission.submittedAt)}</p>
-            <div style={{ background: 'var(--bg-secondary)', padding: '1.25rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              <p style={{ fontSize: '1.05rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', color: 'white', margin: 0 }}>{latestSubmission.note}</p>
+          <div className="glass-panel border-l-4 border-[var(--status-open-color)] p-6">
+            <h3 className="mb-2 text-[0.85rem] uppercase tracking-[0.05em] text-[var(--text-secondary)]">Latest Developer Submission</h3>
+            <p className="mb-4 text-[0.8rem] text-[var(--text-tertiary)]">Submitted by {userName(latestSubmission.submittedBy)} on {fmt(latestSubmission.submittedAt)}</p>
+            <div className="rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] p-5">
+              <p className="m-0 whitespace-pre-wrap text-[1.05rem] leading-[1.7] text-white">{latestSubmission.note}</p>
             </div>
           </div>
         )}
 
-        <div className="glass-panel" style={{ padding: '2rem' }}>
-          <h3 style={{ fontSize: '1.2rem', fontWeight: 'bold', color: 'var(--status-review-color)', marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <div className="glass-panel p-8">
+          <h3 className="mb-6 flex items-center gap-2 text-[1.2rem] font-bold text-[var(--status-review-color)]">
             <Search size={20} /> Reviewer Feedback
           </h3>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-            <label style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em', fontWeight: '600' }}>Your Comments <span style={{ color: 'var(--danger)' }}>*</span></label>
+          <div className="flex flex-col gap-4">
+            <label className="text-[0.9rem] font-semibold uppercase tracking-[0.04em] text-[var(--text-secondary)]">Your Comments <span style={{ color: 'var(--danger)' }}>*</span></label>
             <textarea
               rows={10} value={reviewComment} onChange={(e) => setReviewComment(e.target.value)}
               placeholder="Provide constructive feedback, approval notes, or list specific issues that need fixing…"
-              style={{ padding: '1rem', borderRadius: '8px', border: '1px solid var(--border-color)', background: 'var(--bg-tertiary)', color: 'white', fontSize: '1.05rem', resize: 'vertical' }}
+              className="resize-y rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] p-4 text-[1.05rem] text-white outline-none"
             />
           </div>
 
-          <div style={{ marginTop: '2rem', display: 'flex', justifyContent: 'flex-end', gap: '1rem', flexWrap: 'wrap' }}>
-            <button className="btn" onClick={() => navigate(`/task/${task.id}`)} disabled={isSaving} style={{ padding: '0.8rem 1.5rem', border: '1px solid var(--border-color)', background: 'transparent' }}>Cancel</button>
-            <button className="btn btn-danger" onClick={() => handleAction('ReOpen')} disabled={isSaving} style={{ padding: '0.8rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <div className="mt-8 flex flex-wrap justify-end gap-4">
+            <button className="btn border border-[var(--border-color)] bg-transparent px-6 py-3" onClick={() => navigate(`/task/${task.id}`)} disabled={isSaving}>Cancel</button>
+            <button className="btn btn-danger flex items-center gap-2 px-6 py-3" onClick={() => handleAction('ReOpen')} disabled={isSaving}>
               <RotateCcw size={18} /> {isSaving ? 'Processing…' : 'Request Changes (ReOpen)'}
             </button>
-            <button className="btn btn-success" onClick={() => handleAction('Closed')} disabled={isSaving} style={{ padding: '0.8rem 1.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <button className="btn btn-success flex items-center gap-2 px-6 py-3" onClick={() => handleAction('Closed')} disabled={isSaving}>
               <CheckCircle size={18} /> {isSaving ? 'Processing…' : 'Approve & Close Task'}
             </button>
           </div>

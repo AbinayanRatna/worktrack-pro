@@ -61,50 +61,50 @@ export default function TaskHistory() {
 
   return (
     <Layout>
-      <div style={{ marginBottom: '1.5rem', display: 'flex', alignItems: 'center', gap: '1rem' }}>
-        <button onClick={() => navigate(`/task/${task.id}`)} className="btn" style={{ padding: '0.4rem 0.6rem', color: 'var(--text-secondary)', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center' }}>
+      <div className="mb-6 flex items-center gap-4">
+        <button onClick={() => navigate(`/task/${task.id}`)} className="btn flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5 py-1.5 text-[var(--text-secondary)]">
           <ArrowLeft size={18} />
         </button>
-        <h1 style={{ fontSize: '1.8rem', fontWeight: 'bold', margin: 0, display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+        <h1 className="m-0 flex items-center gap-3 text-[1.8rem] font-bold">
           <Clock size={24} /> Full Submission History
         </h1>
       </div>
 
-      <div style={{ maxWidth: '1000px', margin: '0 auto', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div className="mx-auto flex max-w-[1000px] flex-col gap-6">
         <TaskSummaryHeader task={task} userName={userName} meta={meta} />
 
-        <div className="glass-panel" style={{ padding: '2rem' }}>
+        <div className="glass-panel p-8">
           {!task.submissions || task.submissions.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: '3rem', color: 'var(--text-tertiary)' }}>
+            <div className="p-12 text-center text-[var(--text-tertiary)]">
               <p>No submissions have been made for this task yet.</p>
             </div>
           ) : (
             <div className="submission-thread">
               {task.submissions.map((sub, idx) => (
-                <div key={idx} className="submission-round" style={{ marginBottom: '2.5rem' }}>
+                <div key={idx} className="submission-round mb-10">
                   {/* Dev submission */}
-                  <div className="submission-dev" style={{ padding: '1.5rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                      <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--status-open-color)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                  <div className="submission-dev p-6">
+                    <div className="mb-4 flex justify-between">
+                      <span className="text-[0.85rem] font-bold uppercase tracking-[0.04em] text-[var(--status-open-color)]">
                         Submission #{idx + 1}
                       </span>
-                      <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>{fmt(sub.submittedAt)}</span>
+                      <span className="text-[0.8rem] text-[var(--text-tertiary)]">{fmt(sub.submittedAt)}</span>
                     </div>
-                    <p style={{ fontSize: '1rem', lineHeight: '1.7', color: 'var(--text-primary)', whiteSpace: 'pre-wrap' }}>{sub.note}</p>
-                    <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', marginTop: '1rem' }}>Submitted by <span style={{ color: 'white' }}>{userName(sub.submittedBy)}</span></p>
+                    <p className="whitespace-pre-wrap text-base leading-[1.7] text-[var(--text-primary)]">{sub.note}</p>
+                    <p className="mt-4 text-[0.85rem] text-[var(--text-tertiary)]">Submitted by <span className="text-white">{userName(sub.submittedBy)}</span></p>
                   </div>
 
                   {/* Reviewer response */}
                   {sub.reviewComment != null && (
-                    <div className="submission-review" style={{ padding: '1.5rem' }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '1rem' }}>
-                        <span style={{ fontSize: '0.85rem', fontWeight: '700', color: sub.outcome === 'Closed' ? 'var(--status-closed-color)' : 'var(--status-reopen-color)', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <div className="submission-review p-6">
+                      <div className="mb-4 flex justify-between">
+                        <span className="flex items-center gap-2 text-[0.85rem] font-bold uppercase tracking-[0.04em]" style={{ color: sub.outcome === 'Closed' ? 'var(--status-closed-color)' : 'var(--status-reopen-color)' }}>
                           {sub.outcome === 'Closed' ? '✓ Closed' : '↩ ReOpened'}
                         </span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-tertiary)' }}>{fmt(sub.reviewedAt)}</span>
+                        <span className="text-[0.8rem] text-[var(--text-tertiary)]">{fmt(sub.reviewedAt)}</span>
                       </div>
-                      <p style={{ fontSize: '1rem', lineHeight: '1.7', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', fontStyle: 'italic' }}>"{sub.reviewComment}"</p>
-                      <p style={{ fontSize: '0.85rem', color: 'var(--text-tertiary)', marginTop: '1rem' }}>Reviewed by <span style={{ color: 'white' }}>{userName(sub.reviewedBy)}</span></p>
+                      <p className="whitespace-pre-wrap text-base italic leading-[1.7] text-[var(--text-primary)]">"{sub.reviewComment}"</p>
+                      <p className="mt-4 text-[0.85rem] text-[var(--text-tertiary)]">Reviewed by <span className="text-white">{userName(sub.reviewedBy)}</span></p>
                     </div>
                   )}
                 </div>

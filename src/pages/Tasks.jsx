@@ -1,11 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { db } from '../firebase';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import {
   Plus, RefreshCw, CheckSquare, Eye, LayoutGrid,
-  AlertTriangle, Calendar, User,
+  AlertTriangle, Calendar, User, Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
@@ -22,6 +22,7 @@ export const STATUS_META = {
   'Sent for Review':  { bg: 'var(--status-review-bg)', color: 'var(--status-review-color)' },
   'Closed':           { bg: 'var(--status-closed-bg)', color: 'var(--status-closed-color)' },
   'ReOpen':           { bg: 'var(--status-reopen-bg)', color: 'var(--status-reopen-color)' },
+  'Deleted':          { bg: 'rgba(148,163,184,0.16)',  color: '#94a3b8' },
 };
 
 function todayStr() {
@@ -69,10 +70,13 @@ export default function Tasks() {
     { key: 'mine',   label: 'My Tasks',        icon: <CheckSquare size={16} /> },
     { key: 'review', label: 'Review tasks', icon: <Eye size={16} /> },
     ...(manager ? [{ key: 'team', label: 'All Tasks', icon: <LayoutGrid size={16} /> }] : []),
+    { key: 'deleted', label: 'Deleted', icon: <Trash2 size={16} /> },
   ];
   const [activeTab, setActiveTab] = useState('mine');
   const [statusFilter, setStatusFilter] = useState('All');
   const [userFilter, setUserFilter] = useState('All');
+  const [selectedDeletedIds, setSelectedDeletedIds] = useState([]);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // ── Fetch ────────────────────────────────────────────────────────────────────
   const fetchData = useCallback(async () => {
@@ -96,14 +100,19 @@ export default function Tasks() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // ── Derived lists ─────────────────────────────────────────────────────────────
-  const myTasks     = tasks.filter((t) => t.assignedTo === uid);
-  const reviewTasks = tasks.filter((t) => t.reviewer === uid || t.assignedBy === uid);
+  const myTasks     = tasks.filter((t) => t.assignedTo === uid && t.status !== 'Deleted');
+  const reviewTasks = tasks.filter((t) => (t.reviewer === uid || t.assignedBy === uid) && t.status !== 'Deleted');
 
   // For team tab: all tasks that are assigned to non-manager users (daily task roles)
   const teamTasks = tasks.filter((t) => {
+    if (t.status === 'Deleted') return false;
     const assignee = users.find((u) => u.id === t.assignedTo);
     return assignee != null; // show all if on manager tab; user filter handles narrowing
   });
+
+  const deletedTasks = tasks.filter((t) =>
+    t.status === 'Deleted' && (t.assignedTo === uid || t.assignedBy === uid)
+  );
 
   const today = todayStr();
 
@@ -120,6 +129,7 @@ export default function Tasks() {
   // Apply filters to displayed list
   const applyFilters = (list) => {
     let result = list;
+    if (activeTab === 'deleted') return result;
     if (statusFilter !== 'All') result = result.filter((t) => t.status === statusFilter);
     if (activeTab === 'team' && userFilter !== 'All') result = result.filter((t) => t.assignedTo === userFilter);
     return result;
@@ -128,17 +138,62 @@ export default function Tasks() {
   const rawList =
     activeTab === 'mine'   ? myTasks :
     activeTab === 'review' ? reviewTasks :
-    teamTasks;
+    activeTab === 'team'   ? teamTasks :
+    deletedTasks;
 
   const displayTasks = applyFilters(rawList);
 
-  const switchTab = (tab) => { setActiveTab(tab); setStatusFilter('All'); setUserFilter('All'); };
+  const switchTab = (tab) => {
+    setActiveTab(tab);
+    setStatusFilter('All');
+    setUserFilter('All');
+    setSelectedDeletedIds([]);
+  };
 
   const openCreate = () => { navigate('/task/new'); };
   const openEdit   = (task) => { navigate(`/task/${task.id}`); };
 
   const userName = (id) => users.find((u) => u.id === id)?.name || '—';
   const userRole = (id) => users.find((u) => u.id === id)?.role || '';
+
+  const toggleDeletedSelection = (taskId) => {
+    setSelectedDeletedIds((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    );
+  };
+
+  const deleteDeletedTasks = async (taskIds) => {
+    if (!taskIds.length) {
+      toast.error('No deleted tasks selected.');
+      return;
+    }
+
+    const confirmText = taskIds.length === 1
+      ? 'Permanently delete this task? This cannot be undone.'
+      : `Permanently delete ${taskIds.length} tasks? This cannot be undone.`;
+
+    if (!window.confirm(confirmText)) return;
+
+    try {
+      setIsDeleting(true);
+      if (taskIds.length === 1) {
+        await deleteDoc(doc(db, 'tasks', taskIds[0]));
+      } else {
+        const batch = writeBatch(db);
+        taskIds.forEach((taskId) => batch.delete(doc(db, 'tasks', taskId)));
+        await batch.commit();
+      }
+
+      toast.success(`${taskIds.length} task${taskIds.length > 1 ? 's' : ''} permanently deleted.`);
+      setSelectedDeletedIds((prev) => prev.filter((id) => !taskIds.includes(id)));
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to delete selected task(s).');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
 
   // ── Task Card ────────────────────────────────────────────────────────────────
   const TaskCard = ({ task }) => {
@@ -296,12 +351,12 @@ export default function Tasks() {
       )}
       
       {/* Page header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 'bold' }}>Tasks</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Track and manage work across your team.</p>
+          <h1 className="text-[2rem] font-bold">Tasks</h1>
+          <p className="text-[var(--text-secondary)]">Track and manage work across your team.</p>
         </div>
-        <div style={{ display: 'flex', gap: '0.65rem' }}>
+        <div className="flex gap-2.5">
           <button onClick={() => toggleKanban(true)} className="btn btn-secondary desktop-only" title="Open Kanban View" style={{ display: 'none' }}>
             <LayoutGrid size={16} />
             <span>Kanban View</span>
@@ -331,12 +386,13 @@ export default function Tasks() {
       {manager && activeTab === 'team' && <TeamOverview />}
 
       {/* Tabs */}
-      <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', marginBottom: '1.25rem', overflowX: 'auto' }}>
+      <div className="mb-5 flex overflow-x-auto border-b border-[var(--border-color)]">
         {tabs.map((tab) => {
           const count =
             tab.key === 'mine'   ? myTasks.length :
             tab.key === 'review' ? reviewTasks.length :
-            teamTasks.length;
+            tab.key === 'team'   ? teamTasks.length :
+            deletedTasks.length;
           // Badges for pending-attention items
           const reviewBadge = reviewTasks.filter((t) => t.status === 'Sent for Review').length;
           const badge = tab.key === 'review' ? reviewBadge : 0;
@@ -360,11 +416,11 @@ export default function Tasks() {
             >
               {tab.icon}
               {tab.label}
-              <span style={{ padding: '1px 7px', borderRadius: '10px', fontSize: '0.7rem', fontWeight: 'bold', background: isActive ? 'rgba(59,130,246,0.15)' : 'var(--bg-tertiary)', color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
+              <span className="rounded-[10px] px-[7px] py-[1px] text-[0.7rem] font-bold" style={{ background: isActive ? 'rgba(59,130,246,0.15)' : 'var(--bg-tertiary)', color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)' }}>
                 {count}
               </span>
               {badge > 0 && !isActive && (
-                <span style={{ minWidth: '18px', height: '18px', borderRadius: '9px', background: '#ef4444', color: 'white', fontSize: '0.65rem', fontWeight: 'bold', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', animation: 'pulse 2s infinite' }}>
+                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-[9px] bg-red-500 px-1 text-[0.65rem] font-bold text-white animate-pulse">
                   {badge}
                 </span>
               )}
@@ -374,33 +430,49 @@ export default function Tasks() {
       </div>
 
       {/* Filters row */}
-      <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-        {['All', 'Open', 'Sent for Review', 'Closed', 'ReOpen'].map((s) => (
+      <div className="mb-5 flex flex-wrap items-center gap-2">
+        {activeTab !== 'deleted' && ['All', 'Open', 'Sent for Review', 'Closed', 'ReOpen'].map((s) => (
           <button
             key={s}
             onClick={() => setStatusFilter(s)}
+            className="rounded-full border px-3.5 py-1.5 text-[0.78rem] transition-all"
             style={{
-              padding: '0.35rem 0.85rem', borderRadius: '20px', fontSize: '0.78rem',
               background: statusFilter === s ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
               color: statusFilter === s ? 'white' : 'var(--text-secondary)',
               border: `1px solid ${statusFilter === s ? 'transparent' : 'var(--border-color)'}`,
-              cursor: 'pointer', transition: 'all 0.2s',
             }}
           >
             {s}
           </button>
         ))}
 
+        {activeTab === 'deleted' && (
+          <>
+            <button
+              onClick={() => deleteDeletedTasks(selectedDeletedIds)}
+              disabled={isDeleting || selectedDeletedIds.length === 0}
+              className="btn btn-danger"
+            >
+              Delete Selected ({selectedDeletedIds.length})
+            </button>
+            <button
+              onClick={() => deleteDeletedTasks(deletedTasks.map((t) => t.id))}
+              disabled={isDeleting || deletedTasks.length === 0}
+              className="btn btn-secondary"
+            >
+              Delete All ({deletedTasks.length})
+            </button>
+          </>
+        )}
+
         {/* User filter — only on team tab */}
         {activeTab === 'team' && (
           <select
             value={userFilter}
             onChange={(e) => setUserFilter(e.target.value)}
+            className="ml-auto cursor-pointer rounded-full border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-3.5 py-1.5 text-[0.78rem] text-white"
             style={{
-              padding: '0.35rem 0.85rem', borderRadius: '20px',
-              background: 'var(--bg-tertiary)', color: 'white',
-              border: '1px solid var(--border-color)', marginLeft: 'auto',
-              fontSize: '0.78rem', cursor: 'pointer',
+              marginLeft: 'auto',
             }}
           >
             <option value="All">All Users</option>
@@ -415,21 +487,46 @@ export default function Tasks() {
       {isLoading ? (
         <LoadingSpinner />
       ) : displayTasks.length === 0 ? (
-        <div className="glass-panel" style={{ padding: '3rem 2rem', textAlign: 'center' }}>
-          <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>
-            {activeTab === 'review' ? '✅' : activeTab === 'team' ? '📊' : '📋'}
+        <div className="glass-panel px-8 py-12 text-center">
+          <div className="mb-3 text-[2.5rem]">
+            {activeTab === 'review' ? '✅' : activeTab === 'team' ? '📊' : activeTab === 'deleted' ? '🗑️' : '📋'}
           </div>
-          <p style={{ color: 'var(--text-secondary)' }}>
+          <p className="text-[var(--text-secondary)]">
             {activeTab === 'review'
               ? "No tasks awaiting your review."
               : activeTab === 'team'
               ? 'No tasks match the selected filter.'
+              : activeTab === 'deleted'
+              ? 'No deleted tasks available for you.'
               : 'No tasks assigned to you yet.'}
           </p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
-          {displayTasks.map((task) => <TaskCard key={task.id} task={task} />)}
+        <div className="flex flex-col gap-3.5">
+          {displayTasks.map((task) => (
+            <div key={task.id} className="flex items-start gap-3">
+              {activeTab === 'deleted' && (
+                <input
+                  type="checkbox"
+                  checked={selectedDeletedIds.includes(task.id)}
+                  onChange={() => toggleDeletedSelection(task.id)}
+                  className="mt-5 h-4 w-4 cursor-pointer"
+                />
+              )}
+              <div className="flex-1">
+                <TaskCard task={task} />
+              </div>
+              {activeTab === 'deleted' && (
+                <button
+                  onClick={() => deleteDeletedTasks([task.id])}
+                  disabled={isDeleting}
+                  className="btn btn-danger mt-3"
+                >
+                  Delete
+                </button>
+              )}
+            </div>
+          ))}
         </div>
       )}
     </Layout>

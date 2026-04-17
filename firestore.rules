@@ -1,0 +1,130 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function userRole() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    }
+
+    function isDirector() {
+      return isAuthenticated() && userRole() == 'Director';
+    }
+
+    function isMTA() {
+      return isAuthenticated() && userRole() == 'Manager - Technical Architect';
+    }
+
+    function isOpManager() {
+      return isAuthenticated() && userRole() == 'Operation Manager';
+    }
+
+    // Director, MTA, or Op Manager — can manage tasks, change roles, etc.
+    function isDirectorOrMTA() {
+      return isDirector() || isMTA() || isOpManager();
+    }
+
+    // Only Director or Software Architect (MTA)
+    function isDirectorOrTechArchitect() {
+      return isDirector() || isMTA();
+    }
+
+    // Any of the three management/approver roles
+    function isManager() {
+      return isDirector() || isMTA() || isOpManager();
+    }
+
+    function isValidTaskCreate() {
+      return request.resource.data.keys().hasAll([
+        'title', 'description', 'assignedTo', 'assignedBy', 'reviewer',
+        'dateAssigned', 'dueDate', 'status', 'submissions', 'createdAt', 'updatedAt'
+      ])
+      && request.resource.data.dateAssigned is string
+      && request.resource.data.dateAssigned.size() > 0
+      && request.resource.data.dueDate is string
+      && request.resource.data.dueDate.size() > 0;
+    }
+
+    function canReadTask(taskData) {
+      return taskData.status != 'Deleted'
+        || request.auth.uid == taskData.assignedTo
+        || request.auth.uid == taskData.assignedBy;
+    }
+
+    function canHardDeleteDeletedTask(taskData) {
+      return taskData.status == 'Deleted'
+        && (
+          request.auth.uid == taskData.assignedTo
+          || request.auth.uid == taskData.assignedBy
+        );
+    }
+
+    function isSoftDeleteUpdate() {
+      return request.resource.data.status == 'Deleted' && resource.data.status != 'Deleted';
+    }
+
+    function canSoftDeleteTask(taskData) {
+      return request.auth.uid == taskData.assignedBy || isDirectorOrTechArchitect();
+    }
+
+    // ── Users Collection ─────────────────────────────────────────────────────
+    match /users/{userId} {
+      // Any authenticated user can read (needed for task dropdowns)
+      allow read: if isAuthenticated();
+      // Only Director or MTA can write (create via approval or change roles)
+      allow create: if isDirectorOrMTA();
+      allow update: if isDirectorOrMTA();
+      allow delete: if isDirectorOrMTA();
+    }
+
+    // ── Signup Requests ──────────────────────────────────────────────────────
+    match /signup_requests/{requestId} {
+      // Registrant creates their own request
+      allow create: if isAuthenticated() && request.auth.uid == requestId;
+      // Registrant reads their own; managers read all
+      allow read: if isAuthenticated() &&
+        (request.auth.uid == requestId || isManager());
+      // Only managers can approve/reject (update)
+      allow update: if isManager();
+      allow delete: if isDirectorOrMTA();
+    }
+
+    // ── Tasks Collection ─────────────────────────────────────────────────────
+    match /tasks/{taskId} {
+      // Deleted tasks are only visible to assigner or assignee
+      allow read: if isAuthenticated() && canReadTask(resource.data);
+
+      // Create: any authenticated user, with required date fields
+      allow create: if isAuthenticated() && isValidTaskCreate();
+
+      // Update rules
+      allow update: if isAuthenticated() && (
+        // Soft delete is restricted to assigner OR Director/MTA only.
+        (isSoftDeleteUpdate() && canSoftDeleteTask(resource.data))
+        // For non-soft-delete updates, preserve existing role-based update permissions.
+        || (
+          !isSoftDeleteUpdate() && (
+            isDirectorOrMTA()
+            || request.auth.uid == resource.data.assignedTo
+            || request.auth.uid == resource.data.reviewer
+            || request.auth.uid == resource.data.assignedBy
+          )
+        )
+      );
+
+      // Permanent delete is allowed only for tasks already soft-deleted.
+      allow delete: if isAuthenticated() && canHardDeleteDeletedTask(resource.data);
+    }
+
+    // ── Activity Logs (optional) ─────────────────────────────────────────────
+    match /activity_logs/{logId} {
+      allow read:   if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update, delete: if isDirectorOrMTA();
+    }
+  }
+}

@@ -72,37 +72,22 @@ export default function Sidebar({ isOpen, onClose }) {
       {isOpen && (
         <div
           onClick={onClose}
-          style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 998,
-          }}
+          className="fixed inset-0 z-[998] bg-black/50"
         />
       )}
 
       <aside
-        className={`sidebar-container ${isOpen ? 'open' : ''}`}
-        style={{
-          width: 'var(--nav-width)',
-          height: '100vh',
-          position: 'fixed',
-          left: 0, top: 0,
-          backgroundColor: 'var(--bg-secondary)',
-          borderRight: '1px solid var(--border-color)',
-          padding: '1.5rem',
-          display: 'flex',
-          flexDirection: 'column',
-          transition: 'transform 0.3s ease',
-          zIndex: 999,
-        }}
+        style={{ width: 'var(--nav-width)' }}
+        className={`sidebar-container ${isOpen ? 'open' : ''} fixed left-0 top-0 z-[999] flex h-screen flex-col border-r border-[var(--border-color)] bg-[var(--bg-secondary)] p-6 transition-transform duration-300`}
       >
         {/* Header */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
+        <div className="mb-8 flex items-start justify-between">
           <div>
-            <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold' }}>
+            <h2 className="text-[1.4rem] font-bold">
               WorkTrack <span style={{ color: 'var(--accent-primary)' }}>Pro</span>
             </h2>
-            <div style={{ marginTop: '0.6rem', fontSize: '0.875rem' }}>
-              <div style={{ fontWeight: '500', color: 'white', marginBottom: '4px' }}>
+            <div className="mt-2.5 text-sm">
+              <div className="mb-1 font-medium text-white">
                 {userProfile?.name}
               </div>
               <span style={{
@@ -119,13 +104,13 @@ export default function Sidebar({ isOpen, onClose }) {
               </span>
             </div>
           </div>
-          <button className="mobile-only" onClick={onClose} style={{ color: 'var(--text-secondary)' }}>
+          <button className="mobile-only text-[var(--text-secondary)]" onClick={onClose}>
             <X size={24} />
           </button>
         </div>
 
         {/* Nav */}
-        <nav style={{ flexGrow: 1, display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+        <nav className="flex grow flex-col gap-1.5">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
@@ -140,17 +125,12 @@ export default function Sidebar({ isOpen, onClose }) {
                 fontWeight: isActive ? '500' : 'normal',
                 textDecoration: 'none', position: 'relative',
               })}
+              className="flex items-center gap-3 rounded-lg px-4 py-3"
             >
               {item.icon}
-              <span style={{ flex: 1 }}>{item.name}</span>
+              <span className="flex-1">{item.name}</span>
               {item.badge && (
-                <span style={{
-                  minWidth: '20px', height: '20px', borderRadius: '10px',
-                  background: '#ef4444', color: 'white',
-                  fontSize: '0.7rem', fontWeight: 'bold',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  padding: '0 5px', animation: 'pulse 2s infinite',
-                }}>
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-[0.7rem] font-bold text-white animate-pulse">
                   {item.badge}
                 </span>
               )}
@@ -161,12 +141,7 @@ export default function Sidebar({ isOpen, onClose }) {
         {/* Logout */}
         <button
           onClick={handleLogout}
-          style={{
-            display: 'flex', alignItems: 'center', gap: '0.75rem',
-            padding: '0.75rem 1rem', color: 'var(--danger)', borderRadius: '8px',
-            marginTop: 'auto', background: 'transparent', border: 'none',
-            cursor: 'pointer', width: '100%', transition: 'all 0.2s',
-          }}
+          className="mt-auto flex w-full items-center gap-3 rounded-lg px-4 py-3 text-[var(--danger)] transition-all duration-200"
           onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(239,68,68,0.1)'}
           onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
         >

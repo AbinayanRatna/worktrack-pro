@@ -90,62 +90,62 @@ export default function SignupRequests() {
   return (
     <Layout>
       {/* Header */}
-      <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>Signup Requests</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Review and approve new account requests from your team.</p>
+          <h1 className="mb-1 text-[2rem] font-bold">Signup Requests</h1>
+          <p className="text-[var(--text-secondary)]">Review and approve new account requests from your team.</p>
         </div>
-        <button onClick={fetchRequests} className="btn btn-secondary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+        <button onClick={fetchRequests} className="btn btn-secondary flex items-center gap-2">
           <RefreshCw size={16} /> Refresh
         </button>
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '1rem', marginBottom: '1.5rem' }}>
+      <div className="mb-6 grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))' }}>
         {['pending', 'approved', 'rejected'].map((s) => {
           const count = requests.filter((r) => r.status === s).length;
           const cfg = STATUS_COLORS[s];
           return (
-            <button key={s} onClick={() => setFilter(s)} style={{ background: filter === s ? cfg.bg : 'var(--bg-secondary)', border: `1px solid ${filter === s ? cfg.color : 'var(--border-color)'}`, borderRadius: '12px', padding: '1rem', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s' }}>
-              <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: cfg.color }}>{count}</div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'capitalize', marginTop: '0.2rem' }}>{cfg.label}</div>
+            <button key={s} onClick={() => setFilter(s)} className="cursor-pointer rounded-xl p-4 text-left transition-all duration-200" style={{ background: filter === s ? cfg.bg : 'var(--bg-secondary)', border: `1px solid ${filter === s ? cfg.color : 'var(--border-color)'}` }}>
+              <div className="text-[1.5rem] font-bold" style={{ color: cfg.color }}>{count}</div>
+              <div className="mt-1 text-[0.75rem] capitalize text-[var(--text-secondary)]">{cfg.label}</div>
             </button>
           );
         })}
-        <button onClick={() => setFilter('all')} style={{ background: filter === 'all' ? 'rgba(99,102,241,0.12)' : 'var(--bg-secondary)', border: `1px solid ${filter === 'all' ? 'var(--accent-primary)' : 'var(--border-color)'}`, borderRadius: '12px', padding: '1rem', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s' }}>
-          <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: 'var(--accent-primary)' }}>{requests.length}</div>
-          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>Total</div>
+        <button onClick={() => setFilter('all')} className="cursor-pointer rounded-xl p-4 text-left transition-all duration-200" style={{ background: filter === 'all' ? 'rgba(99,102,241,0.12)' : 'var(--bg-secondary)', border: `1px solid ${filter === 'all' ? 'var(--accent-primary)' : 'var(--border-color)'}` }}>
+          <div className="text-[1.5rem] font-bold text-[var(--accent-primary)]">{requests.length}</div>
+          <div className="mt-1 text-[0.75rem] text-[var(--text-secondary)]">Total</div>
         </button>
       </div>
 
       {/* List */}
       {isLoading ? <LoadingSpinner /> : filtered.length === 0 ? (
-        <div className="glass-panel" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-          <Users size={48} style={{ color: 'var(--text-secondary)', margin: '0 auto 1rem' }} />
-          <p style={{ color: 'var(--text-secondary)' }}>No {filter !== 'all' ? filter : ''} requests found.</p>
+        <div className="glass-panel px-8 py-16 text-center">
+          <Users size={48} className="mx-auto mb-4 text-[var(--text-secondary)]" />
+          <p className="text-[var(--text-secondary)]">No {filter !== 'all' ? filter : ''} requests found.</p>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div className="flex flex-col gap-3">
           {filtered.map((request) => {
             const cfg = STATUS_COLORS[request.status] || STATUS_COLORS.pending;
             const isProcesing = processingId === request.id;
             return (
-              <div key={request.id} className="glass-panel" style={{ padding: '1.25rem 1.5rem', display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap', borderLeft: `3px solid ${cfg.color}` }}>
+              <div key={request.id} className="glass-panel flex flex-wrap items-center gap-4 px-6 py-5" style={{ borderLeft: `3px solid ${cfg.color}` }}>
                 {/* Avatar */}
                 <div style={{ width: '44px', height: '44px', borderRadius: '50%', flexShrink: 0, background: 'linear-gradient(135deg, var(--accent-primary), var(--accent-secondary))', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', color: 'white' }}>
                   {request.name?.charAt(0).toUpperCase()}
                 </div>
 
                 {/* Info */}
-                <div style={{ flex: 1, minWidth: '200px' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
-                    <span style={{ fontWeight: '600', fontSize: '0.95rem' }}>{request.name}</span>
-                    <span style={{ padding: '2px 10px', borderRadius: '12px', fontSize: '0.7rem', fontWeight: 'bold', background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
+                <div className="min-w-[200px] flex-1">
+                  <div className="mb-1 flex flex-wrap items-center gap-2.5">
+                    <span className="text-[0.95rem] font-semibold">{request.name}</span>
+                    <span className="rounded-xl px-2.5 py-[2px] text-[0.7rem] font-bold" style={{ background: cfg.bg, color: cfg.color }}>{cfg.label}</span>
                   </div>
-                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: '0.3rem' }}>{request.email}</div>
-                  <div style={{ display: 'flex', gap: '1rem', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
-                    <span style={{ color: 'var(--accent-secondary)', fontWeight: '500' }}>🎯 {request.role}</span>
-                    <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                  <div className="mb-1 text-[0.8rem] text-[var(--text-secondary)]">{request.email}</div>
+                  <div className="flex flex-wrap gap-4 text-[0.78rem] text-[var(--text-secondary)]">
+                    <span className="font-medium text-[var(--accent-secondary)]">🎯 {request.role}</span>
+                    <span className="flex items-center gap-1">
                       <Clock size={11} /> {formatDate(request.createdAt)}
                     </span>
                   </div>
@@ -153,29 +153,29 @@ export default function SignupRequests() {
 
                 {/* Actions */}
                 {request.status === 'pending' && (
-                  <div style={{ display: 'flex', gap: '0.5rem', flexShrink: 0 }}>
-                    <button onClick={() => handleApprove(request)} disabled={isProcesing} className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', fontSize: '0.8rem', opacity: isProcesing ? 0.6 : 1 }}>
+                  <div className="shrink-0 flex gap-2">
+                    <button onClick={() => handleApprove(request)} disabled={isProcesing} className="btn btn-primary flex items-center gap-1.5 px-4 py-2 text-[0.8rem]" style={{ opacity: isProcesing ? 0.6 : 1 }}>
                       <CheckCircle size={15} />
                       {isProcesing ? 'Processing…' : 'Approve'}
                     </button>
-                    <button onClick={() => handleReject(request)} disabled={isProcesing} className="btn btn-danger" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', fontSize: '0.8rem', opacity: isProcesing ? 0.6 : 1 }}>
+                    <button onClick={() => handleReject(request)} disabled={isProcesing} className="btn btn-danger flex items-center gap-1.5 px-4 py-2 text-[0.8rem]" style={{ opacity: isProcesing ? 0.6 : 1 }}>
                       <XCircle size={15} /> Reject
                     </button>
                   </div>
                 )}
 
                 {request.status === 'approved' && (
-                  <div style={{ fontSize: '0.75rem', color: '#10b981', textAlign: 'right', flexShrink: 0 }}>
-                    <CheckCircle size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                  <div className="shrink-0 text-right text-[0.75rem] text-[#10b981]">
+                    <CheckCircle size={14} className="mr-1 inline" />
                     By {request.approvedBy}<br />
-                    <span style={{ color: 'var(--text-secondary)' }}>{formatDate(request.approvedAt)}</span>
+                    <span className="text-[var(--text-secondary)]">{formatDate(request.approvedAt)}</span>
                   </div>
                 )}
                 {request.status === 'rejected' && (
-                  <div style={{ fontSize: '0.75rem', color: '#ef4444', textAlign: 'right', flexShrink: 0 }}>
-                    <XCircle size={14} style={{ display: 'inline', marginRight: '4px' }} />
+                  <div className="shrink-0 text-right text-[0.75rem] text-[#ef4444]">
+                    <XCircle size={14} className="mr-1 inline" />
                     By {request.rejectedBy}<br />
-                    <span style={{ color: 'var(--text-secondary)' }}>{formatDate(request.rejectedAt)}</span>
+                    <span className="text-[var(--text-secondary)]">{formatDate(request.rejectedAt)}</span>
                   </div>
                 )}
               </div>

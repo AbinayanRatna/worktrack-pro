@@ -19,8 +19,8 @@ const TOOLTIPS = {
 function FieldWithTooltip({ id, label, tooltipKey, children, focusedField, setFocusedField }) {
   const showTooltip = focusedField === tooltipKey;
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-      <label style={labelStyle}>{label}</label>
+    <div className="flex flex-col gap-2">
+      <label className={labelClass}>{label}</label>
       <div className="tooltip-wrapper">
         {/* Clone child with focus/blur handlers injected */}
         {children({ setFocusedField, tooltipKey })}
@@ -34,6 +34,9 @@ function FieldWithTooltip({ id, label, tooltipKey, children, focusedField, setFo
     </div>
   );
 }
+
+const inputClass = 'w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-4 py-3 text-sm text-white outline-none transition-colors';
+const labelClass = 'text-xs font-medium uppercase tracking-[0.05em] text-[var(--text-secondary)]';
 
 export default function Login() {
   const [isRegistering, setIsRegistering] = useState(false);
@@ -126,20 +129,20 @@ export default function Login() {
   if (signupDone) {
     return (
       <PageWrapper>
-        <div className="glass-panel" style={{ width: '100%', maxWidth: '440px', padding: '2.5rem', textAlign: 'center' }}>
-          <div style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'linear-gradient(135deg,rgba(245,158,11,0.2),rgba(245,158,11,0.05))', border: '2px solid rgba(245,158,11,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem', fontSize: '2rem', animation: 'pulse 2s infinite' }}>
+        <div className="glass-panel w-full max-w-[440px] p-10 text-center">
+          <div className="mx-auto mb-6 flex h-[72px] w-[72px] items-center justify-center rounded-full border-2 border-amber-400/40 bg-gradient-to-br from-amber-500/20 to-amber-500/5 text-3xl animate-pulse">
             ⏳
           </div>
-          <h2 style={{ fontSize: '1.4rem', fontWeight: 'bold', marginBottom: '0.75rem' }}>Request Submitted!</h2>
-          <p style={{ color: 'var(--text-secondary)', lineHeight: '1.6', marginBottom: '1.5rem' }}>
+          <h2 className="mb-3 text-[1.4rem] font-bold">Request Submitted!</h2>
+          <p className="mb-6 leading-relaxed text-[var(--text-secondary)]">
             Your signup request has been sent. A Director, Operation Manager, or Manager - Technical Architect will review and approve your account.
           </p>
-          <div style={{ background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: '8px', padding: '0.875rem 1rem', marginBottom: '1.5rem', textAlign: 'left', fontSize: '0.875rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+          <div className="mb-6 flex flex-col gap-1.5 rounded-lg border border-amber-500/25 bg-amber-500/10 px-4 py-3.5 text-left text-sm">
             <InfoRow label="Name" value={name} />
             <InfoRow label="Email" value={email} />
             <InfoRow label="Role" value={role} />
           </div>
-          <button onClick={() => { resetForm(); setIsRegistering(false); }} className="btn btn-secondary" style={{ width: '100%' }}>
+          <button onClick={() => { resetForm(); setIsRegistering(false); }} className="btn btn-secondary w-full">
             Back to Login
           </button>
         </div>
@@ -151,18 +154,18 @@ export default function Login() {
   if (isResettingPassword) {
     return (
       <PageWrapper>
-        <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem' }}>
-          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
+        <div className="glass-panel w-full max-w-[420px] p-10">
+          <div className="mb-8 text-center">
+            <h1 className="mb-1 text-[1.75rem] font-bold">
               Reset Password
             </h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>We'll send you a recovery link</p>
+            <p className="text-sm text-[var(--text-secondary)]">We'll send you a recovery link</p>
           </div>
 
-          <form onSubmit={handleResetPassword} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-              <label style={labelStyle}>Email Address</label>
-              <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="you@company.com" required style={inputStyle} />
+          <form onSubmit={handleResetPassword} className="flex flex-col gap-4.5">
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Email Address</label>
+              <input type="email" value={resetEmail} onChange={(e) => setResetEmail(e.target.value)} placeholder="you@company.com" required className={inputClass} />
             </div>
 
             <button
@@ -173,9 +176,9 @@ export default function Login() {
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+          <p className="mt-7 text-center text-sm text-[var(--text-secondary)]">
             Remembered your password?{' '}
-            <button type="button" onClick={() => setIsResettingPassword(false)} style={{ color: 'var(--accent-primary)', fontWeight: '500', textDecoration: 'underline' }}>
+            <button type="button" onClick={() => setIsResettingPassword(false)} className="font-medium text-[var(--accent-primary)] underline">
               Sign In
             </button>
           </p>
@@ -188,29 +191,29 @@ export default function Login() {
   if (!isRegistering) {
     return (
       <PageWrapper>
-        <div className="glass-panel" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem' }}>
-          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-            <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
+        <div className="glass-panel w-full max-w-[420px] p-10">
+          <div className="mb-8 text-center">
+            <h1 className="mb-1 text-[1.75rem] font-bold">
               WorkTrack <span style={{ color: 'var(--accent-primary)' }}>Pro</span>
             </h1>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Sign in to your workspace</p>
+            <p className="text-sm text-[var(--text-secondary)]">Sign in to your workspace</p>
           </div>
 
-          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-              <label style={labelStyle}>Email Address</label>
-              <input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" required style={inputStyle} />
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4.5">
+            <div className="flex flex-col gap-2">
+              <label className={labelClass}>Email Address</label>
+              <input id="auth-email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@company.com" required className={inputClass} />
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <label style={{ ...labelStyle, marginBottom: 0 }}>Password</label>
-                <button type="button" onClick={() => setIsResettingPassword(true)} style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+            <div className="flex flex-col gap-2">
+              <div className="flex items-center justify-between">
+                <label className={labelClass}>Password</label>
+                <button type="button" onClick={() => setIsResettingPassword(true)} className="p-0 text-xs text-[var(--accent-primary)]">
                   Forgot?
                 </button>
               </div>
-              <div style={{ position: 'relative' }}>
-                <input id="auth-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required style={{ ...inputStyle, paddingRight: '2.5rem' }} />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, display: 'flex' }}>
+              <div className="relative">
+                <input id="auth-password" type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" required className={`${inputClass} pr-10`} />
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 flex -translate-y-1/2 p-0 text-[var(--text-secondary)]">
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
@@ -224,9 +227,9 @@ export default function Login() {
             </button>
           </form>
 
-          <p style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+          <p className="mt-7 text-center text-sm text-[var(--text-secondary)]">
             Don't have an account?{' '}
-            <button type="button" onClick={() => { resetForm(); setIsRegistering(true); }} style={{ color: 'var(--accent-primary)', fontWeight: '500', textDecoration: 'underline' }}>
+            <button type="button" onClick={() => { resetForm(); setIsRegistering(true); }} className="font-medium text-[var(--accent-primary)] underline">
               Create account
             </button>
           </p>
@@ -238,59 +241,59 @@ export default function Login() {
   // ── Register form ──────────────────────────────────────────────────────────
   return (
     <PageWrapper>
-      <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '2.5rem' }}>
-        <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
-          <h1 style={{ fontSize: '1.75rem', fontWeight: 'bold', marginBottom: '0.25rem' }}>
+      <div className="glass-panel w-full max-w-[480px] p-10">
+        <div className="mb-8 text-center">
+          <h1 className="mb-1 text-[1.75rem] font-bold">
             WorkTrack <span style={{ color: 'var(--accent-primary)' }}>Pro</span>
           </h1>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.875rem' }}>Create a new account</p>
+          <p className="text-sm text-[var(--text-secondary)]">Create a new account</p>
         </div>
 
-        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
+        <form onSubmit={handleSubmit} className="flex flex-col gap-4.5">
 
           {/* Full Name */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-            <label style={labelStyle}>Full Name</label>
+          <div className="flex flex-col gap-2">
+            <label className={labelClass}>Full Name</label>
             <div className="tooltip-wrapper">
               <input
                 id="signup-name" type="text" value={name}
                 onChange={(e) => setName(e.target.value)}
                 onFocus={() => setFocusedField('name')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="John Doe" required style={inputStyle}
+                placeholder="John Doe" required className={inputClass}
               />
               {focusedField === 'name' && <Tooltip text={TOOLTIPS.name} />}
             </div>
           </div>
 
           {/* Email */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-            <label style={labelStyle}>Email Address</label>
+          <div className="flex flex-col gap-2">
+            <label className={labelClass}>Email Address</label>
             <div className="tooltip-wrapper">
               <input
                 id="signup-email" type="email" value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 onFocus={() => setFocusedField('email')}
                 onBlur={() => setFocusedField(null)}
-                placeholder="you@company.com" required style={inputStyle}
+                placeholder="you@company.com" required className={inputClass}
               />
               {focusedField === 'email' && <Tooltip text={TOOLTIPS.email} />}
             </div>
           </div>
 
           {/* Password */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-            <label style={labelStyle}>Password</label>
+          <div className="flex flex-col gap-2">
+            <label className={labelClass}>Password</label>
             <div className="tooltip-wrapper">
-              <div style={{ position: 'relative' }}>
+              <div className="relative">
                 <input
                   id="signup-password" type={showPassword ? 'text' : 'password'} value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   onFocus={() => setFocusedField('password')}
                   onBlur={() => setFocusedField(null)}
-                  placeholder="Min. 8 characters" required style={{ ...inputStyle, paddingRight: '2.5rem' }}
+                  placeholder="Min. 8 characters" required className={`${inputClass} pr-10`}
                 />
-                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 flex -translate-y-1/2 p-0 text-[var(--text-secondary)]">
                   {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
@@ -299,18 +302,18 @@ export default function Login() {
           </div>
 
           {/* Confirm Password */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-            <label style={labelStyle}>Confirm Password</label>
+          <div className="flex flex-col gap-2">
+            <label className={labelClass}>Confirm Password</label>
             <div className="tooltip-wrapper">
-              <div style={{ position: 'relative' }}>
+              <div className="relative">
                 <input
                   id="signup-confirm-password" type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   onFocus={() => setFocusedField('confirmPassword')}
                   onBlur={() => setFocusedField(null)}
-                  placeholder="Re-enter your password" required style={{ ...inputStyle, paddingRight: '2.5rem' }}
+                  placeholder="Re-enter your password" required className={`${inputClass} pr-10`}
                 />
-                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} style={{ position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0, display: 'flex' }}>
+                <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)} className="absolute right-3 top-1/2 flex -translate-y-1/2 p-0 text-[var(--text-secondary)]">
                   {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
@@ -319,8 +322,8 @@ export default function Login() {
           </div>
 
           {/* Role */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
-            <label style={labelStyle}>Role / Designation</label>
+          <div className="flex flex-col gap-2">
+            <label className={labelClass}>Role / Designation</label>
             <div className="tooltip-wrapper">
               <select
                 id="signup-role" value={role}
@@ -329,10 +332,11 @@ export default function Login() {
                 onBlur={() => setFocusedField(null)}
                 required
                 style={{
-                  ...inputStyle, cursor: 'pointer', appearance: 'none',
+                  cursor: 'pointer', appearance: 'none',
                   backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23888' d='M6 8L1 3h10z'/%3E%3C/svg%3E")`,
-                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', paddingRight: '2.5rem',
+                  backgroundRepeat: 'no-repeat', backgroundPosition: 'right 1rem center', paddingRight: '2.5rem'
                 }}
+                className={inputClass}
               >
                 <option value="" disabled>Select your designation…</option>
                 {ROLES.map((r) => (
@@ -351,9 +355,9 @@ export default function Login() {
           </button>
         </form>
 
-        <p style={{ textAlign: 'center', marginTop: '1.75rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+        <p className="mt-7 text-center text-sm text-[var(--text-secondary)]">
           Already have an account?{' '}
-          <button type="button" onClick={() => { setIsRegistering(false); resetForm(); }} style={{ color: 'var(--accent-primary)', fontWeight: '500', textDecoration: 'underline' }}>
+          <button type="button" onClick={() => { setIsRegistering(false); resetForm(); }} className="font-medium text-[var(--accent-primary)] underline">
             Sign In
           </button>
         </p>
@@ -374,9 +378,9 @@ function Tooltip({ text }) {
 
 function InfoRow({ label, value }) {
   return (
-    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-      <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-      <span style={{ fontWeight: '500' }}>{value}</span>
+    <div className="flex justify-between">
+      <span className="text-[var(--text-secondary)]">{label}</span>
+      <span className="font-medium">{value}</span>
     </div>
   );
 }
@@ -391,13 +395,3 @@ function PageWrapper({ children }) {
     </div>
   );
 }
-const inputStyle = {
-  padding: '0.75rem 1rem', borderRadius: '8px',
-  border: '1px solid var(--border-color)', background: 'var(--bg-tertiary)',
-  color: 'white', fontSize: '0.9rem', outline: 'none',
-  transition: 'border-color 0.2s', width: '100%', boxSizing: 'border-box',
-};
-const labelStyle = {
-  fontSize: '0.8rem', fontWeight: '500', color: 'var(--text-secondary)',
-  textTransform: 'uppercase', letterSpacing: '0.05em',
-};

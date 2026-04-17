@@ -3,6 +3,104 @@ const admin = require('firebase-admin');
 
 admin.initializeApp();
 const db = admin.firestore();
+const COLOMBO_TZ = 'Asia/Colombo';
+
+function ymdInColombo(date = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: COLOMBO_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(date);
+}
+
+function addDaysToYmd(ymd, days) {
+  const [year, month, day] = (ymd || '').split('-').map(Number);
+  if (!year || !month || !day) return null;
+  const dt = new Date(Date.UTC(year, month - 1, day + days));
+  const y = dt.getUTCFullYear();
+  const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(dt.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+function diffDays(startYmd, endYmd) {
+  const [sy, sm, sd] = (startYmd || '').split('-').map(Number);
+  const [ey, em, ed] = (endYmd || '').split('-').map(Number);
+  if (!sy || !sm || !sd || !ey || !em || !ed) return null;
+  const startUtc = Date.UTC(sy, sm - 1, sd);
+  const endUtc = Date.UTC(ey, em - 1, ed);
+  return Math.floor((endUtc - startUtc) / (1000 * 60 * 60 * 24));
+}
+
+function pushToMapArray(map, key, value) {
+  if (!map.has(key)) map.set(key, []);
+  map.get(key).push(value);
+}
+
+async function resolveUserEmail(uid) {
+  if (!uid) return null;
+
+  try {
+    const userDoc = await db.collection('users').doc(uid).get();
+    const email = userDoc.exists ? userDoc.data()?.email : null;
+    if (email) return email;
+  } catch (err) {
+    console.error(`Failed reading users/${uid} for email`, err);
+  }
+
+  try {
+    const authUser = await admin.auth().getUser(uid);
+    return authUser?.email || null;
+  } catch (err) {
+    console.error(`Failed reading auth user ${uid} for email`, err);
+    return null;
+  }
+}
+
+async function queueTaskDigestMail({ uid, tasks, kind }) {
+  const email = await resolveUserEmail(uid);
+  if (!email || !Array.isArray(tasks) || tasks.length === 0) return false;
+
+  const sorted = tasks
+    .map((t) => ({ title: t.title || 'Untitled Task', status: t.status || 'Open' }))
+    .sort((a, b) => a.title.localeCompare(b.title));
+
+  const isOverdue = kind === 'overdue';
+  const subject = isOverdue
+    ? `Overdue Task Alert (${sorted.length})`
+    : `Task Due Tomorrow Reminder (${sorted.length})`;
+
+  const intro = isOverdue
+    ? 'The due date has passed for the following task(s):'
+    : 'Reminder for task(s) due tomorrow:';
+
+  const textList = sorted.map((t) => `- ${t.title} (${t.status})`).join('\n');
+  const htmlList = sorted
+    .map((t) => `<li><strong>${t.title}</strong> <span style="color:#64748b">(${t.status})</span></li>`)
+    .join('');
+
+  await db.collection('mail').add({
+    to: [email],
+    message: {
+      subject,
+      text: `${intro}\n\n${textList}`,
+      html: `
+        <div style="font-family:Segoe UI, Tahoma, sans-serif; max-width:600px; margin:0 auto; background:#f8fafc; padding:24px; border-radius:12px;">
+          <div style="background:#ffffff; padding:24px; border-radius:12px; border:1px solid #e2e8f0;">
+            <h2 style="margin:0 0 12px 0; color:#0f172a; font-size:20px;">${isOverdue ? 'Overdue Task Alert' : 'Task Reminder'}</h2>
+            <p style="margin:0 0 16px 0; color:#475569; font-size:14px;">${intro}</p>
+            <ul style="margin:0; padding-left:20px; color:#0f172a; line-height:1.7;">
+              ${htmlList}
+            </ul>
+          </div>
+        </div>
+      `,
+    },
+  });
+
+  return true;
+}
 
 // Function to log task creation
 exports.onTaskCreated = functions.firestore
@@ -171,29 +269,75 @@ exports.onTaskUpdated = functions.firestore
     return null;
   });
 
-// Scheduled task to auto-update overdue tasks
-exports.markOverdueTasks = functions.pubsub.schedule('every 24 hours').onRun(async (context) => {
-  const now = admin.firestore.Timestamp.now();
-  
-  const snapshot = await db.collection('tasks')
-    .where('dueDate', '<', now)
-    .where('status', 'not-in', ['Completed'])
-    .get();
+// Daily task reminders at 8:00 AM Sri Lanka time.
+// 1) Overdue digest: task is Open/ReOpen and dueDate < today.
+// 2) Due-tomorrow digest: assigned & due date gap >= 2 days and dueDate is tomorrow.
+exports.sendDailyTaskDigest = functions.pubsub
+  .schedule('0 8 * * *')
+  .timeZone(COLOMBO_TZ)
+  .onRun(async () => {
+    const today = ymdInColombo(new Date());
+    const tomorrow = addDaysToYmd(today, 1);
 
-  const batch = db.batch();
-  snapshot.forEach(doc => {
-    batch.update(doc.ref, { status: 'Overdue' });
+    const snapshot = await db.collection('tasks')
+      .where('status', 'in', ['Open', 'ReOpen'])
+      .get();
+
+    const overdueByAssignee = new Map();
+    const reminderByAssignee = new Map();
+
+    snapshot.forEach((taskDoc) => {
+      const task = taskDoc.data();
+      const assignedTo = task.assignedTo;
+      const dueDate = task.dueDate;
+      const dateAssigned = task.dateAssigned;
+
+      if (!assignedTo || !dueDate) return;
+
+      if (dueDate < today) {
+        pushToMapArray(overdueByAssignee, assignedTo, task);
+        return;
+      }
+
+      if (dueDate !== tomorrow || !dateAssigned) return;
+
+      const gapDays = diffDays(dateAssigned, dueDate);
+      if (gapDays != null && gapDays >= 2) {
+        pushToMapArray(reminderByAssignee, assignedTo, task);
+      }
+    });
+
+    const allAssignees = new Set([
+      ...Array.from(overdueByAssignee.keys()),
+      ...Array.from(reminderByAssignee.keys()),
+    ]);
+
+    let overdueMailCount = 0;
+    let reminderMailCount = 0;
+
+    for (const uid of allAssignees) {
+      const overdueTasks = overdueByAssignee.get(uid) || [];
+      const reminderTasks = reminderByAssignee.get(uid) || [];
+
+      if (overdueTasks.length > 0) {
+        const sent = await queueTaskDigestMail({ uid, tasks: overdueTasks, kind: 'overdue' });
+        if (sent) overdueMailCount += 1;
+      }
+
+      if (reminderTasks.length > 0) {
+        const sent = await queueTaskDigestMail({ uid, tasks: reminderTasks, kind: 'reminder' });
+        if (sent) reminderMailCount += 1;
+      }
+    }
+
+    console.log(`Daily digest complete. Overdue mails: ${overdueMailCount}, Reminder mails: ${reminderMailCount}`);
+    return null;
   });
 
-  await batch.commit();
-  console.log(`Marked ${snapshot.size} tasks as overdue`);
-  return null;
-});
-
-// Scheduled task to auto-delete tasks older than 60 days
+// Scheduled task to soft-delete Closed tasks older than 90 days
 exports.deleteOldTasks = functions.pubsub.schedule('every 24 hours').onRun(async (context) => {
   const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - 60);
+  cutoffDate.setDate(cutoffDate.getDate() - 90);
   const cutoffTimestamp = admin.firestore.Timestamp.fromDate(cutoffDate);
   
   const snapshot = await db.collection('tasks')
@@ -205,11 +349,25 @@ exports.deleteOldTasks = functions.pubsub.schedule('every 24 hours').onRun(async
   }
 
   const batch = db.batch();
+  let shiftedCount = 0;
   snapshot.forEach(doc => {
-    batch.delete(doc.ref);
+    const task = doc.data();
+    if (task.status === 'Closed') {
+      batch.update(doc.ref, {
+        status: 'Deleted',
+        deletedAt: admin.firestore.FieldValue.serverTimestamp(),
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      shiftedCount += 1;
+    }
   });
 
+  if (shiftedCount === 0) {
+    console.log('No Closed tasks older than 90 days to move into Deleted');
+    return null;
+  }
+
   await batch.commit();
-  console.log(`Deleted ${snapshot.size} tasks older than 60 days`);
+  console.log(`Moved ${shiftedCount} Closed tasks older than 90 days into Deleted`);
   return null;
 });
