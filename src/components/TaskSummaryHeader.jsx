@@ -55,9 +55,22 @@ export default function TaskSummaryHeader({ task, userName, meta }) {
         <div style={{ padding: '1.5rem' }}>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1.5rem', fontSize: '0.9rem' }}>
             <InfoRow label="Assigned To">{userName(task.assignedTo)}</InfoRow>
+            <InfoRow label="Task Type">{task.taskType === 'delegated' ? 'Delegated' : 'Non-delegated'}</InfoRow>
+            {task.taskType === 'delegated' && (
+              <InfoRow label="Task Lead">{userName(task.taskLeadId || task.assignedTo)}</InfoRow>
+            )}
             <InfoRow label="Reviewer"><span style={{ color: 'var(--status-review-color)' }}>{userName(task.reviewer)}</span></InfoRow>
             <InfoRow label="Date Assigned">{task.dateAssigned || '—'}</InfoRow>
             <InfoRow label="Due Date">{task.dueDate || '—'}</InfoRow>
+            {task.taskType === 'delegated' && (
+              <InfoRow label="Delegated Workers" fullWidth>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.5' }}>
+                  {(task.workerIds || []).length > 0
+                    ? task.workerIds.map((wid) => userName(wid)).join(', ')
+                    : 'No delegated workers'}
+                </span>
+              </InfoRow>
+            )}
             <InfoRow label="Description" fullWidth>
               <div style={{ color: 'var(--text-secondary)', fontSize: '1rem', lineHeight: '1.7', whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: '400px', overflowY: 'auto', paddingRight: '1rem' }}>
                 {task.description}

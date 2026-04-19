@@ -52,6 +52,8 @@ export default function TaskDetail() {
   // CREATE mode state
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [isTransferable, setIsTransferable] = useState(false);
+  const [taskLeadId, setTaskLeadId] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
   const [reviewer, setReviewer] = useState('');
   const [dateAssigned, setDateAssigned] = useState(todayStr());
@@ -61,6 +63,8 @@ export default function TaskDetail() {
   // ACTION state (for existing tasks)
   const [editDueDate, setEditDueDate] = useState('');
   const [editingDueDate, setEditingDueDate] = useState(false);
+  const [editingWorkers, setEditingWorkers] = useState(false);
+  const [editWorkerIds, setEditWorkerIds] = useState([]);
 
   const role = userProfile?.role;
   const uid  = userProfile?.id;
@@ -69,9 +73,11 @@ export default function TaskDetail() {
   const isReviewer  = task?.reviewer  === uid;
   const isAssignee  = task?.assignedTo === uid;
   const isAssigner  = task?.assignedBy === uid;
+  const isTaskLead = task?.taskLeadId === uid;
   const canDelete   = task && canDeleteTask(role, isAssigner);
   const canCR       = task && canCloseOrReopen(role, isReviewer, isAssigner);
   const canDateEdit = task && canChangeDueDate(role, isReviewer);
+  const canManageDelegation = task && (isAssigner || isTaskLead);
 
   const assignableUsers = getAssignableUsers(users, userProfile);
 
@@ -90,6 +96,7 @@ export default function TaskDetail() {
           const t = { id: taskDoc.id, ...taskDoc.data() };
           setTask(t);
           setEditDueDate(t.dueDate || '');
+          setEditWorkerIds(t.workerIds || []);
         } else {
           toast.error("Task not found");
           navigate('/');
@@ -98,6 +105,8 @@ export default function TaskDetail() {
         // Init create form
         setTitle(''); setDescription('');
         setAssignedTo(canCreateTask(role) && getAssignableUsers(fetchedUsers, userProfile).length > 0 ? (uid || '') : '');
+        setIsTransferable(false);
+        setTaskLeadId(uid || '');
         setReviewer(''); setDateAssigned(todayStr()); setDueDate(todayStr());
         setTitleError('');
       }
@@ -123,17 +132,27 @@ export default function TaskDetail() {
       setTitleError('Title must be 50 characters or fewer.'); return;
     }
     if (!reviewer) { toast.error('Reviewer is required.'); return; }
-    if (!assignedTo) { toast.error('Please select someone to assign the task to.'); return; }
+    if (isTransferable) {
+      if (!taskLeadId) { toast.error('Task lead is required for delegated tasks.'); return; }
+    } else if (!assignedTo) {
+      toast.error('Please select someone to assign the task to.');
+      return;
+    }
     if (!dateAssigned) { toast.error('Assigned date is required.'); return; }
     if (!dueDate) { toast.error('Due date is required.'); return; }
     if (isBeforeYmd(dateAssigned, today)) { toast.error('Assigned date cannot be before today.'); return; }
     if (isBeforeYmd(dueDate, today)) { toast.error('Due date cannot be before today.'); return; }
     try {
       setIsSaving(true);
+      const taskType = isTransferable ? 'delegated' : 'non_delegated';
+
       await addDoc(collection(db, 'tasks'), {
         title: title.trim(),
         description: description.trim(),
-        assignedTo,
+        taskType,
+        taskLeadId: isTransferable ? taskLeadId : null,
+        workerIds: [],
+        assignedTo: isTransferable ? taskLeadId : assignedTo,
         assignedBy: uid,
         reviewer,
         dateAssigned,
@@ -151,6 +170,43 @@ export default function TaskDetail() {
     }
   }
 
+  async function handleSaveWorkers() {
+    if (!task || task.taskType !== 'delegated') return;
+    try {
+      setIsSaving(true);
+      await updateDoc(doc(db, 'tasks', task.id), {
+        workerIds: editWorkerIds,
+        updatedAt: serverTimestamp(),
+      });
+      toast.success('Worker assignments updated.');
+      setEditingWorkers(false);
+      fetchData();
+    } catch (err) {
+      toast.error('Error: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
+  async function handleSendToCreator() {
+    if (!task || task.taskType !== 'delegated' || !isTaskLead) return;
+    if (!window.confirm('Send this delegated task to creator for final approval?')) return;
+    try {
+      setIsSaving(true);
+      await updateDoc(doc(db, 'tasks', task.id), {
+        status: 'Sent for Review',
+        delegatedReviewByCreator: true,
+        updatedAt: serverTimestamp(),
+      });
+      toast.success('Sent to creator for final approval.');
+      navigate(`/task/${task.id}`);
+    } catch (err) {
+      toast.error('Error: ' + err.message);
+    } finally {
+      setIsSaving(false);
+    }
+  }
+
 
   // ── DELETE TASK ──────────────────────────────────────────────────────────────
   async function handleDelete() {
@@ -163,6 +219,7 @@ export default function TaskDetail() {
       setIsSaving(true);
       await updateDoc(doc(db, 'tasks', task.id), {
         status: 'Deleted',
+        deletedFromStatus: task.status,
         deletedAt: serverTimestamp(),
         updatedAt: serverTimestamp(),
       });
@@ -246,17 +303,43 @@ export default function TaskDetail() {
                 </div>
               </div>
 
+              <div className="form-grid-2-1 -mt-2">
+                <div>
+                  <label className="flex items-center gap-2 text-[0.95rem] text-white">
+                    <input
+                      type="checkbox"
+                      checked={isTransferable}
+                      onChange={(e) => setIsTransferable(e.target.checked)}
+                      className="h-4 w-4"
+                    />
+                    <span>This task is transferable</span>
+                  </label>
+                </div>
+              </div>
+
               {/* Row 2: Assigned To, Date Assigned, Due Date */}
               <div className="form-grid-3">
-                <div>
-                  <label className={labelClass}>Assigned To <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} required className={inputClass}>
-                    <option value="">Select person…</option>
-                    {assignableUsers.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {!isTransferable ? (
+                  <div>
+                    <label className={labelClass}>Assigned To <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <select value={assignedTo} onChange={(e) => setAssignedTo(e.target.value)} required className={inputClass}>
+                      <option value="">Select person…</option>
+                      {assignableUsers.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                ) : (
+                  <div>
+                    <label className={labelClass}>Task Lead <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <select value={taskLeadId} onChange={(e) => setTaskLeadId(e.target.value)} required className={inputClass}>
+                      <option value="">Select lead…</option>
+                      {assignableUsers.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className={labelClass}>Date Assigned <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input type="date" value={dateAssigned} min={todayStr()} required onChange={(e) => setDateAssigned(e.target.value)} className={inputClass} />
@@ -307,9 +390,15 @@ export default function TaskDetail() {
               <div className="-mt-3.5 flex flex-wrap items-center gap-2.5">
                 
                 {/* 1. Add Submission (Primary Active) */}
-                {isAssignee && (task.status === 'Open' || task.status === 'ReOpen') && (
+                {((task.taskType !== 'delegated' && isAssignee) || (task.taskType === 'delegated' && (isTaskLead || (task.workerIds || []).includes(uid)))) && (task.status === 'Open' || task.status === 'ReOpen') && (
                   <button onClick={() => navigate(`/task/${task.id}/submit`)} className="btn btn-primary flex items-center gap-2 px-4.5 py-2 text-[0.9rem]">
                     <Send size={16} /> Add Submission
+                  </button>
+                )}
+
+                {task.taskType === 'delegated' && isTaskLead && (task.status === 'Open' || task.status === 'ReOpen') && (
+                  <button onClick={handleSendToCreator} className="btn btn-secondary flex items-center gap-2 px-4.5 py-2 text-[0.9rem]" disabled={isSaving}>
+                    <Send size={16} /> Send to Creator
                   </button>
                 )}
 
@@ -339,6 +428,10 @@ export default function TaskDetail() {
               <div className="rounded-[10px] border border-[var(--border-color)] bg-[var(--bg-tertiary)] p-6">
                 <div className="grid gap-6 text-[0.9rem]" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
                   <InfoRow label="Assigned To">{userName(task.assignedTo)}</InfoRow>
+                  {task.taskType === 'delegated' && (
+                    <InfoRow label="Task Lead">{userName(task.taskLeadId || task.assignedTo)}</InfoRow>
+                  )}
+                  {task.taskType && <InfoRow label="Task Type">{task.taskType === 'delegated' ? 'Delegated' : 'Non-delegated'}</InfoRow>}
                   <InfoRow label="Reviewer"><span style={{ color: 'var(--status-review-color)' }}>{userName(task.reviewer)}</span></InfoRow>
                   <InfoRow label="Date Assigned">{task.dateAssigned || '—'}</InfoRow>
                   <InfoRow label="Due Date">
@@ -362,6 +455,37 @@ export default function TaskDetail() {
                       {task.description}
                     </div>
                   </InfoRow>
+                  {task.taskType === 'delegated' && (
+                    <InfoRow label="Delegated Workers" fullWidth>
+                      {editingWorkers ? (
+                        <div className="flex flex-col gap-2">
+                          <select
+                            multiple
+                            value={editWorkerIds}
+                            onChange={(e) => setEditWorkerIds(Array.from(e.target.selectedOptions, (opt) => opt.value))}
+                            className="w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-2 py-2 text-[0.85rem] text-white"
+                          >
+                            {assignableUsers.filter((u) => u.id !== (task.taskLeadId || task.assignedTo)).map((u) => (
+                              <option key={u.id} value={u.id}>{u.name}</option>
+                            ))}
+                          </select>
+                          <div className="flex gap-2">
+                            <button onClick={handleSaveWorkers} disabled={isSaving} className="btn btn-primary px-2.5 py-1 text-[0.8rem]">Save</button>
+                            <button onClick={() => setEditingWorkers(false)} className="border-0 bg-transparent text-[0.8rem] text-[var(--text-secondary)]">Cancel</button>
+                          </div>
+                        </div>
+                      ) : (
+                        <span className="flex items-center gap-2">
+                          {(task.workerIds || []).length > 0
+                            ? task.workerIds.map((wid) => userName(wid)).join(', ')
+                            : 'No delegated workers'}
+                          {canManageDelegation && task.status !== 'Deleted' && (
+                            <button onClick={() => setEditingWorkers(true)} className="border-0 bg-transparent text-[0.8rem] text-[var(--accent-primary)] underline">Edit</button>
+                          )}
+                        </span>
+                      )}
+                    </InfoRow>
+                  )}
                 </div>
               </div>
 

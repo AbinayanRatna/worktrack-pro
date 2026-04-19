@@ -174,14 +174,19 @@ exports.onTaskUpdated = functions.firestore
         const prevStatus = previousValue.status;
         const newStatus = newValue.status;
 
-        // 1. From Open/ReOpen -> Sent for Review (Notify Assigner & Reviewer)
+        // 1. From Open/ReOpen -> Sent for Review
         if (newStatus === 'Sent for Review' && prevStatus !== 'Sent for Review') {
+          const isDelegated = newValue.taskType === 'delegated';
           const assignerUid = newValue.assignedBy;
           const reviewerUid = newValue.reviewer;
           
           let targetUids = new Set();
-          if (assignerUid) targetUids.add(assignerUid);
-          if (reviewerUid) targetUids.add(reviewerUid);
+          if (isDelegated && newValue.delegatedReviewByCreator) {
+            if (assignerUid) targetUids.add(assignerUid);
+          } else {
+            if (assignerUid) targetUids.add(assignerUid);
+            if (reviewerUid) targetUids.add(reviewerUid);
+          }
           
           if (targetUids.size > 0) {
             let emails = [];
@@ -219,15 +224,27 @@ exports.onTaskUpdated = functions.firestore
           }
         }
 
-        // 2. From Sent for Review -> ReOpen / Closed (Notify Assignee)
+        // 2. From Sent for Review -> ReOpen / Closed
         if (prevStatus === 'Sent for Review' && (newStatus === 'ReOpen' || newStatus === 'Closed')) {
-          const assigneeUid = newValue.assignedTo;
-          if (assigneeUid) {
-            const userRec = await admin.auth().getUser(assigneeUid).catch(() => null);
-            if (userRec && userRec.email) {
+          const isDelegated = newValue.taskType === 'delegated';
+          const delegatedRecipients = new Set([
+            ...(newValue.workerIds || []),
+            newValue.taskLeadId,
+            newValue.assignedTo,
+          ].filter(Boolean));
+          const targetUids = isDelegated ? Array.from(delegatedRecipients) : [newValue.assignedTo].filter(Boolean);
+
+          if (targetUids.length > 0) {
+            const emails = [];
+            for (const targetUid of targetUids) {
+              const userRec = await admin.auth().getUser(targetUid).catch(() => null);
+              if (userRec && userRec.email) emails.push(userRec.email);
+            }
+
+            if (emails.length > 0) {
               const statusColor = newStatus === 'Closed' ? '#10b981' : '#ef4444';
               await db.collection('mail').add({
-                to: [userRec.email],
+                to: emails,
                 message: {
                   subject: `Task Update: ${newStatus} - ${newValue.title || 'Task'}`,
                   text: `Your task has been updated to ${newStatus}.\n\nTitle: ${newValue.title || 'N/A'}`,
@@ -291,11 +308,15 @@ exports.sendDailyTaskDigest = functions.pubsub
       const assignedTo = task.assignedTo;
       const dueDate = task.dueDate;
       const dateAssigned = task.dateAssigned;
+      const isDelegated = task.taskType === 'delegated';
+      const recipients = isDelegated
+        ? Array.from(new Set([...(task.workerIds || []), task.taskLeadId, assignedTo].filter(Boolean)))
+        : [assignedTo].filter(Boolean);
 
-      if (!assignedTo || !dueDate) return;
+      if (recipients.length === 0 || !dueDate) return;
 
       if (dueDate < today) {
-        pushToMapArray(overdueByAssignee, assignedTo, task);
+        recipients.forEach((recipientUid) => pushToMapArray(overdueByAssignee, recipientUid, task));
         return;
       }
 
@@ -303,7 +324,7 @@ exports.sendDailyTaskDigest = functions.pubsub
 
       const gapDays = diffDays(dateAssigned, dueDate);
       if (gapDays != null && gapDays >= 2) {
-        pushToMapArray(reminderByAssignee, assignedTo, task);
+        recipients.forEach((recipientUid) => pushToMapArray(reminderByAssignee, recipientUid, task));
       }
     });
 
@@ -355,6 +376,7 @@ exports.deleteOldTasks = functions.pubsub.schedule('every 24 hours').onRun(async
     if (task.status === 'Closed') {
       batch.update(doc.ref, {
         status: 'Deleted',
+        deletedFromStatus: 'Closed',
         deletedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });

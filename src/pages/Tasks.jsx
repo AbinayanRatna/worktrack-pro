@@ -1,18 +1,18 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { db } from '../firebase';
-import { collection, deleteDoc, doc, getDocs, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import {
   Plus, RefreshCw, CheckSquare, Eye, LayoutGrid,
-  AlertTriangle, Calendar, User, Trash2,
+  AlertTriangle, Calendar, ListChecks, RotateCcw, User, Trash2,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import LoadingSpinner from '../components/LoadingSpinner';
 import KanbanBoard from '../components/KanbanBoard';
 import toast from 'react-hot-toast';
 import {
-  isManager, requiresDailyTask, canCreateTask,
+  isManager, requiresDailyTask, canCreateTask, canDeleteTask,
   DAILY_TASK_ROLES,
 } from '../constants/roles';
 
@@ -76,6 +76,8 @@ export default function Tasks() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [userFilter, setUserFilter] = useState('All');
   const [selectedDeletedIds, setSelectedDeletedIds] = useState([]);
+  const [selectAllMode, setSelectAllMode] = useState(false);
+  const [isRestoring, setIsRestoring] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
   // ── Fetch ────────────────────────────────────────────────────────────────────
@@ -111,7 +113,11 @@ export default function Tasks() {
   });
 
   const deletedTasks = tasks.filter((t) =>
-    t.status === 'Deleted' && (t.assignedTo === uid || t.assignedBy === uid)
+    t.status === 'Deleted' && (
+      t.assignedTo === uid ||
+      t.assignedBy === uid ||
+      canDeleteTask(role, t.assignedBy === uid)
+    )
   );
 
   const today = todayStr();
@@ -148,6 +154,7 @@ export default function Tasks() {
     setStatusFilter('All');
     setUserFilter('All');
     setSelectedDeletedIds([]);
+    setSelectAllMode(false);
   };
 
   const openCreate = () => { navigate('/task/new'); };
@@ -157,9 +164,75 @@ export default function Tasks() {
   const userRole = (id) => users.find((u) => u.id === id)?.role || '';
 
   const toggleDeletedSelection = (taskId) => {
+    setSelectAllMode(false);
     setSelectedDeletedIds((prev) =>
       prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
     );
+  };
+
+  const toggleSelectAllDeleted = () => {
+    if (selectAllMode) {
+      setSelectAllMode(false);
+      setSelectedDeletedIds([]);
+      return;
+    }
+
+    setSelectAllMode(true);
+    setSelectedDeletedIds(deletedTasks.map((t) => t.id));
+  };
+
+  const getRestoreStatus = (task) => {
+    if (task?.deletedFromStatus && task.deletedFromStatus !== 'Deleted') {
+      return task.deletedFromStatus;
+    }
+    return 'Closed';
+  };
+
+  const restoreDeletedTasks = async (taskIds) => {
+    if (!taskIds.length) {
+      toast.error('No deleted tasks selected.');
+      return;
+    }
+
+    const confirmText = taskIds.length === 1
+      ? 'Restore this task from Deleted bin?'
+      : `Restore ${taskIds.length} tasks from Deleted bin?`;
+
+    if (!window.confirm(confirmText)) return;
+
+    try {
+      setIsRestoring(true);
+
+      if (taskIds.length === 1) {
+        const task = deletedTasks.find((t) => t.id === taskIds[0]);
+        if (!task) throw new Error('Task not found for restore.');
+
+        await updateDoc(doc(db, 'tasks', task.id), {
+          status: getRestoreStatus(task),
+          updatedAt: serverTimestamp(),
+        });
+      } else {
+        const batch = writeBatch(db);
+        taskIds.forEach((taskId) => {
+          const task = deletedTasks.find((t) => t.id === taskId);
+          if (!task) return;
+          batch.update(doc(db, 'tasks', taskId), {
+            status: getRestoreStatus(task),
+            updatedAt: serverTimestamp(),
+          });
+        });
+        await batch.commit();
+      }
+
+      toast.success(`${taskIds.length} task${taskIds.length > 1 ? 's' : ''} restored.`);
+      setSelectedDeletedIds((prev) => prev.filter((id) => !taskIds.includes(id)));
+      await fetchData();
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to restore selected task(s).');
+    } finally {
+      setIsRestoring(false);
+    }
   };
 
   const deleteDeletedTasks = async (taskIds) => {
@@ -449,19 +522,53 @@ export default function Tasks() {
         {activeTab === 'deleted' && (
           <>
             <button
-              onClick={() => deleteDeletedTasks(selectedDeletedIds)}
-              disabled={isDeleting || selectedDeletedIds.length === 0}
-              className="btn btn-danger"
-            >
-              Delete Selected ({selectedDeletedIds.length})
-            </button>
-            <button
-              onClick={() => deleteDeletedTasks(deletedTasks.map((t) => t.id))}
-              disabled={isDeleting || deletedTasks.length === 0}
+              onClick={toggleSelectAllDeleted}
+              disabled={isRestoring || isDeleting || deletedTasks.length === 0}
               className="btn btn-secondary"
+              title={selectAllMode ? 'Clear selection' : 'Select all'}
             >
-              Delete All ({deletedTasks.length})
+              <ListChecks size={16} />
             </button>
+
+            {selectAllMode ? (
+              <>
+                <button
+                  onClick={() => restoreDeletedTasks(deletedTasks.map((t) => t.id))}
+                  disabled={isRestoring || isDeleting || deletedTasks.length === 0}
+                  className="btn btn-secondary"
+                  title="Restore all"
+                >
+                  <RotateCcw size={16} />
+                </button>
+                <button
+                  onClick={() => deleteDeletedTasks(deletedTasks.map((t) => t.id))}
+                  disabled={isRestoring || isDeleting || deletedTasks.length === 0}
+                  className="btn btn-danger"
+                  title="Delete all permanently"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </>
+            ) : selectedDeletedIds.length > 0 ? (
+              <>
+                <button
+                  onClick={() => restoreDeletedTasks(selectedDeletedIds)}
+                  disabled={isRestoring || isDeleting}
+                  className="btn btn-secondary"
+                  title="Restore selected"
+                >
+                  <RotateCcw size={16} />
+                </button>
+                <button
+                  onClick={() => deleteDeletedTasks(selectedDeletedIds)}
+                  disabled={isRestoring || isDeleting}
+                  className="btn btn-danger"
+                  title="Delete selected permanently"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </>
+            ) : null}
           </>
         )}
 
@@ -517,13 +624,24 @@ export default function Tasks() {
                 <TaskCard task={task} />
               </div>
               {activeTab === 'deleted' && (
-                <button
-                  onClick={() => deleteDeletedTasks([task.id])}
-                  disabled={isDeleting}
-                  className="btn btn-danger mt-3"
-                >
-                  Delete
-                </button>
+                <div className="mt-3 flex flex-col gap-2">
+                  <button
+                    onClick={() => restoreDeletedTasks([task.id])}
+                    disabled={isRestoring || isDeleting}
+                    className="btn btn-secondary"
+                    title="Restore"
+                  >
+                    <RotateCcw size={14} />
+                  </button>
+                  <button
+                    onClick={() => deleteDeletedTasks([task.id])}
+                    disabled={isRestoring || isDeleting}
+                    className="btn btn-danger"
+                    title="Delete permanently"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               )}
             </div>
           ))}

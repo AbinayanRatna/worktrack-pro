@@ -55,6 +55,10 @@ export default function TaskSubmit() {
   const userName = (userId) => users.find((u) => u.id === userId)?.name || '—';
   const meta = task ? (STATUS_META[task.status] || STATUS_META.Open) : null;
   const isAssignee = task?.assignedTo === uid;
+  const isDelegated = task?.taskType === 'delegated';
+  const isLead = task?.taskLeadId === uid || task?.assignedTo === uid;
+  const isWorker = (task?.workerIds || []).includes(uid);
+  const canSubmit = isDelegated ? (isLead || isWorker) : isAssignee;
 
   async function handleSubmit() {
     if (!submitNote.trim()) {
@@ -75,13 +79,16 @@ export default function TaskSubmit() {
         outcome: null,
       };
 
+      const nextStatus = isDelegated ? (isLead ? 'Sent for Review' : (task.status || 'Open')) : 'Sent for Review';
+
       await updateDoc(doc(db, 'tasks', task.id), {
-        status: 'Sent for Review',
+        status: nextStatus,
+        delegatedReviewByCreator: isDelegated && isLead ? true : !!task.delegatedReviewByCreator,
         submissions: [...(task.submissions || []), newSubmission],
         updatedAt: serverTimestamp(),
       });
 
-      toast.success('Work submitted for review!');
+      toast.success(isDelegated && !isLead ? 'Worker update submitted to task lead.' : 'Work submitted for review!');
       navigate(`/task/${task.id}`);
     } catch (err) {
       toast.error('Error: ' + err.message);
@@ -98,12 +105,12 @@ export default function TaskSubmit() {
     );
   }
 
-  if (!isAssignee) {
+  if (!canSubmit) {
     return (
       <Layout>
         <div className="p-12 text-center">
           <h2>Access Denied</h2>
-          <p>You cannot submit work for a task you are not assigned to.</p>
+          <p>You cannot submit work for this task.</p>
           <button className="btn mt-4" onClick={() => navigate(`/task/${task.id}`)}>
             Go Back
           </button>
@@ -171,7 +178,7 @@ export default function TaskSubmit() {
               onClick={handleSubmit}
               disabled={isSaving}
             >
-              {isSaving ? 'Submitting…' : 'Submit for Review'}
+              {isSaving ? 'Submitting…' : isDelegated && !isLead ? 'Submit Update' : 'Submit for Review'}
             </button>
           </div>
         </div>

@@ -28,9 +28,9 @@ service cloud.firestore {
       return isDirector() || isMTA() || isOpManager();
     }
 
-    // Only Director or Software Architect (MTA)
+    // Director, MTA, or Operation Manager when treated as architect-level
     function isDirectorOrTechArchitect() {
-      return isDirector() || isMTA();
+      return isDirector() || isMTA() || isOpManager();
     }
 
     // Any of the three management/approver roles
@@ -41,18 +41,24 @@ service cloud.firestore {
     function isValidTaskCreate() {
       return request.resource.data.keys().hasAll([
         'title', 'description', 'assignedTo', 'assignedBy', 'reviewer',
-        'dateAssigned', 'dueDate', 'status', 'submissions', 'createdAt', 'updatedAt'
+        'dateAssigned', 'dueDate', 'status', 'submissions', 'createdAt', 'updatedAt',
+        'taskType', 'taskLeadId', 'workerIds'
       ])
       && request.resource.data.dateAssigned is string
       && request.resource.data.dateAssigned.size() > 0
       && request.resource.data.dueDate is string
-      && request.resource.data.dueDate.size() > 0;
+      && request.resource.data.dueDate.size() > 0
+      && request.resource.data.taskType in ['delegated', 'non_delegated']
+      && request.resource.data.workerIds is list;
     }
 
     function canReadTask(taskData) {
       return taskData.status != 'Deleted'
         || request.auth.uid == taskData.assignedTo
-        || request.auth.uid == taskData.assignedBy;
+        || (taskData.keys().hasAny(['taskLeadId']) && request.auth.uid == taskData.taskLeadId)
+        || (taskData.keys().hasAny(['workerIds']) && taskData.workerIds.hasAny([request.auth.uid]))
+        || request.auth.uid == taskData.assignedBy
+        || isDirectorOrTechArchitect();
     }
 
     function canHardDeleteDeletedTask(taskData) {
@@ -67,8 +73,16 @@ service cloud.firestore {
       return request.resource.data.status == 'Deleted' && resource.data.status != 'Deleted';
     }
 
+    function isRestoreUpdate() {
+      return request.resource.data.status != 'Deleted' && resource.data.status == 'Deleted';
+    }
+
     function canSoftDeleteTask(taskData) {
       return request.auth.uid == taskData.assignedBy || isDirectorOrTechArchitect();
+    }
+
+    function canRestoreTask(taskData) {
+      return canSoftDeleteTask(taskData);
     }
 
     // ── Users Collection ─────────────────────────────────────────────────────
@@ -105,11 +119,16 @@ service cloud.firestore {
       allow update: if isAuthenticated() && (
         // Soft delete is restricted to assigner OR Director/MTA only.
         (isSoftDeleteUpdate() && canSoftDeleteTask(resource.data))
-        // For non-soft-delete updates, preserve existing role-based update permissions.
+        // Restore from Deleted is restricted to users who can soft-delete.
+        || (isRestoreUpdate() && canRestoreTask(resource.data))
+        // For all other updates, preserve existing role-based permissions but
+        // do not allow updates while task is in Deleted state.
         || (
-          !isSoftDeleteUpdate() && (
+          !isSoftDeleteUpdate() && !isRestoreUpdate() && resource.data.status != 'Deleted' && (
             isDirectorOrMTA()
             || request.auth.uid == resource.data.assignedTo
+            || (resource.data.keys().hasAny(['taskLeadId']) && request.auth.uid == resource.data.taskLeadId)
+            || (resource.data.keys().hasAny(['workerIds']) && resource.data.workerIds.hasAny([request.auth.uid]))
             || request.auth.uid == resource.data.reviewer
             || request.auth.uid == resource.data.assignedBy
           )

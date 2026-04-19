@@ -64,10 +64,14 @@ export default function TaskReview() {
   const meta = task ? (STATUS_META[task.status] || STATUS_META['Open']) : null;
   const isReviewer = task?.reviewer === uid;
   const isAssigner = task?.assignedBy === uid;
-  const canCR = task && canCloseOrReopen(role, isReviewer, isAssigner);
+  const isDelegated = task?.taskType === 'delegated';
+  const creatorFinalReview = isDelegated && !!task?.delegatedReviewByCreator;
+  const canCR = task && (creatorFinalReview ? isAssigner : canCloseOrReopen(role, isReviewer, isAssigner));
   
-  const latestSubmission = (task?.submissions && task.submissions.length > 0) 
-    ? task.submissions[task.submissions.length - 1] 
+  const latestSubmission = (task?.submissions && task.submissions.length > 0)
+    ? (creatorFinalReview
+      ? [...task.submissions].reverse().find((s) => s.submissionType === 'lead_final') || task.submissions[task.submissions.length - 1]
+      : task.submissions[task.submissions.length - 1])
     : null;
 
   async function handleAction(outcome) {  // outcome = 'Closed' | 'ReOpen'
@@ -94,6 +98,7 @@ export default function TaskReview() {
 
       await updateDoc(doc(db, 'tasks', task.id), {
         status: outcome,
+        delegatedReviewByCreator: false,
         submissions: updatedSubs,
         updatedAt: serverTimestamp(),
       });
