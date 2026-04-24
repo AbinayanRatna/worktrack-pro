@@ -45,6 +45,7 @@ export default function TaskDetail() {
   
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const [task, setTask] = useState(null);
   const [users, setUsers] = useState([]);
@@ -65,6 +66,7 @@ export default function TaskDetail() {
   const [editingDueDate, setEditingDueDate] = useState(false);
   const [editingWorkers, setEditingWorkers] = useState(false);
   const [editWorkerIds, setEditWorkerIds] = useState([]);
+  const [workerToAdd, setWorkerToAdd] = useState('');
 
   const role = userProfile?.role;
   const uid  = userProfile?.id;
@@ -80,6 +82,27 @@ export default function TaskDetail() {
   const canManageDelegation = task && (isAssigner || isTaskLead);
 
   const assignableUsers = getAssignableUsers(users, userProfile);
+  const delegatedWorkerOptions = task
+    ? assignableUsers.filter((u) =>
+        u.id !== task.taskLeadId &&
+        u.id !== task.assignedBy &&
+        !editWorkerIds.includes(u.id)
+      )
+    : [];
+
+  const addDelegatedWorker = () => {
+    if (!workerToAdd) return;
+    setEditWorkerIds((prev) => (prev.includes(workerToAdd) ? prev : [...prev, workerToAdd]));
+    setWorkerToAdd('');
+  };
+
+  const removeDelegatedWorker = (workerId) => {
+    setEditWorkerIds((prev) => prev.filter((id) => id !== workerId));
+  };
+
+  const hasDelegatedWorkerChanges = task
+    ? [...editWorkerIds].sort().join(',') !== [...(task.workerIds || [])].sort().join(',')
+    : false;
 
   // Fetch data
   const fetchData = useCallback(async () => {
@@ -131,7 +154,6 @@ export default function TaskDetail() {
     if (title.length > 50) {
       setTitleError('Title must be 50 characters or fewer.'); return;
     }
-    if (!reviewer) { toast.error('Reviewer is required.'); return; }
     if (isTransferable) {
       if (!taskLeadId) { toast.error('Task lead is required for delegated tasks.'); return; }
     } else if (!assignedTo) {
@@ -154,7 +176,7 @@ export default function TaskDetail() {
         workerIds: [],
         assignedTo: isTransferable ? taskLeadId : assignedTo,
         assignedBy: uid,
-        reviewer,
+        reviewer: isTransferable ? taskLeadId : reviewer,
         dateAssigned,
         dueDate,
         status: 'Open',
@@ -216,7 +238,7 @@ export default function TaskDetail() {
     }
     if (!window.confirm(`Move "${task.title}" to Deleted tasks? You can permanently delete it later from the Deleted tab.`)) return;
     try {
-      setIsSaving(true);
+      setIsDeleting(true);
       await updateDoc(doc(db, 'tasks', task.id), {
         status: 'Deleted',
         deletedFromStatus: task.status,
@@ -227,8 +249,9 @@ export default function TaskDetail() {
       navigate('/');
     } catch (err) {
       toast.error('Error: ' + err.message);
-      setIsSaving(false);
-    } 
+    } finally {
+      setIsDeleting(false);
+    }
   }
 
   // ── UPDATE DUE DATE ──────────────────────────────────────────────────────────
@@ -274,7 +297,7 @@ export default function TaskDetail() {
           <div className="flex-1">
             <form onSubmit={handleCreate} className="flex h-full min-h-[600px] flex-col gap-6">
               {/* Row 1: Title and Reviewer */}
-              <div className="form-grid-2-1">
+              <div className={isTransferable ? 'flex flex-col gap-0' : 'form-grid-2-1'}>
                 <div>
                   <label className={labelClass}>Title <span style={{ color: 'var(--danger)' }}>*</span></label>
                   <input
@@ -292,15 +315,17 @@ export default function TaskDetail() {
                     <p style={{ color: 'var(--text-tertiary)', fontSize: '0.75rem', margin: 0 }}>{title.length}/50</p>
                   </div>
                 </div>
-                <div>
-                  <label className={labelClass}>Reviewer <span style={{ color: 'var(--danger)' }}>*</span></label>
-                  <select value={reviewer} onChange={(e) => setReviewer(e.target.value)} required className={`${inputClass} px-4 py-4 text-[1.1rem]`}>
-                    <option value="">Select reviewer…</option>
-                    {users.map((u) => (
-                      <option key={u.id} value={u.id}>{u.name}</option>
-                    ))}
-                  </select>
-                </div>
+                {!isTransferable && (
+                  <div>
+                    <label className={labelClass}>Reviewer <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <select value={reviewer} onChange={(e) => setReviewer(e.target.value)} required className={`${inputClass} px-4 py-4 text-[1.1rem]`}>
+                      <option value="">Select reviewer…</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="form-grid-2-1 -mt-2">
@@ -418,8 +443,8 @@ export default function TaskDetail() {
 
                 {/* 4. Delete */}
                 {canDelete && task.status !== 'Deleted' && (
-                  <button className="btn btn-danger flex items-center gap-2 px-4 py-2 text-[0.85rem]" onClick={handleDelete} disabled={isSaving}>
-                    <Trash2 size={14} /> {isSaving ? 'Deleting…' : 'Move to Deleted'}
+                  <button className="btn btn-danger flex items-center gap-2 px-4 py-2 text-[0.85rem]" onClick={handleDelete} disabled={isDeleting}>
+                    <Trash2 size={14} /> {isDeleting ? 'Deleting…' : 'Move to Deleted'}
                   </button>
                 )}
               </div>
@@ -457,21 +482,60 @@ export default function TaskDetail() {
                   </InfoRow>
                   {task.taskType === 'delegated' && (
                     <InfoRow label="Delegated Workers" fullWidth>
-                      {editingWorkers ? (
+                      {canManageDelegation && task.status !== 'Deleted' ? (
                         <div className="flex flex-col gap-2">
-                          <select
-                            multiple
-                            value={editWorkerIds}
-                            onChange={(e) => setEditWorkerIds(Array.from(e.target.selectedOptions, (opt) => opt.value))}
-                            className="w-full rounded-md border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-2 py-2 text-[0.85rem] text-white"
-                          >
-                            {assignableUsers.filter((u) => u.id !== (task.taskLeadId || task.assignedTo)).map((u) => (
-                              <option key={u.id} value={u.id}>{u.name}</option>
-                            ))}
-                          </select>
+                          <div className="flex flex-wrap gap-2">
+                            {(editWorkerIds.length > 0) ? editWorkerIds.map((workerId) => (
+                              <span
+                                key={workerId}
+                                className="inline-flex items-center gap-2 rounded-full border border-[var(--border-color)] bg-[var(--bg-secondary)] px-3 py-1 text-[0.85rem] text-white"
+                              >
+                                {userName(workerId)}
+                                <button
+                                  type="button"
+                                  onClick={() => removeDelegatedWorker(workerId)}
+                                  className="inline-flex h-5 w-5 items-center justify-center rounded-full bg-[var(--bg-tertiary)] text-[var(--text-secondary)] hover:text-white"
+                                  aria-label={`Remove ${userName(workerId)}`}
+                                >
+                                  <X size={12} />
+                                </button>
+                              </span>
+                            )) : (
+                              <span className="text-[0.85rem] text-[var(--text-secondary)]">No delegated workers selected yet.</span>
+                            )}
+                          </div>
+
+                          <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                            <select
+                              value={workerToAdd}
+                              onChange={(e) => setWorkerToAdd(e.target.value)}
+                              className={inputClass}
+                            >
+                              <option value="">Add a worker…</option>
+                              {delegatedWorkerOptions.map((u) => (
+                                <option key={u.id} value={u.id}>{u.name}</option>
+                              ))}
+                            </select>
+                            <button
+                              type="button"
+                              onClick={addDelegatedWorker}
+                              disabled={!workerToAdd || isSaving}
+                              className="btn btn-primary px-4 py-2 text-[0.85rem]"
+                            >
+                              Add
+                            </button>
+                          </div>
+
                           <div className="flex gap-2">
-                            <button onClick={handleSaveWorkers} disabled={isSaving} className="btn btn-primary px-2.5 py-1 text-[0.8rem]">Save</button>
-                            <button onClick={() => setEditingWorkers(false)} className="border-0 bg-transparent text-[0.8rem] text-[var(--text-secondary)]">Cancel</button>
+                            <button
+                              onClick={handleSaveWorkers}
+                              disabled={isSaving || !hasDelegatedWorkerChanges}
+                              className="btn btn-primary px-2.5 py-1 text-[0.8rem]"
+                              style={{ opacity: isSaving || !hasDelegatedWorkerChanges ? 0.45 : 1, cursor: isSaving || !hasDelegatedWorkerChanges ? 'not-allowed' : 'pointer' }}
+                            >
+                              Save
+                            </button>
+                            <button onClick={() => { setEditWorkerIds(task.workerIds || []); setWorkerToAdd(''); }} disabled={isSaving || !hasDelegatedWorkerChanges} className="border-0 bg-transparent text-[0.8rem] text-[var(--text-secondary)]" style={{ opacity: isSaving || !hasDelegatedWorkerChanges ? 0.45 : 1, cursor: isSaving || !hasDelegatedWorkerChanges ? 'not-allowed' : 'pointer' }}>Reset</button>
                           </div>
                         </div>
                       ) : (
@@ -479,9 +543,6 @@ export default function TaskDetail() {
                           {(task.workerIds || []).length > 0
                             ? task.workerIds.map((wid) => userName(wid)).join(', ')
                             : 'No delegated workers'}
-                          {canManageDelegation && task.status !== 'Deleted' && (
-                            <button onClick={() => setEditingWorkers(true)} className="border-0 bg-transparent text-[0.8rem] text-[var(--accent-primary)] underline">Edit</button>
-                          )}
                         </span>
                       )}
                     </InfoRow>

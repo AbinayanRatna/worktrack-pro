@@ -56,7 +56,7 @@ export default function TaskSubmit() {
   const meta = task ? (STATUS_META[task.status] || STATUS_META.Open) : null;
   const isAssignee = task?.assignedTo === uid;
   const isDelegated = task?.taskType === 'delegated';
-  const isLead = task?.taskLeadId === uid || task?.assignedTo === uid;
+  const isLead = task?.taskLeadId === uid;
   const isWorker = (task?.workerIds || []).includes(uid);
   const canSubmit = isDelegated ? (isLead || isWorker) : isAssignee;
 
@@ -79,16 +79,14 @@ export default function TaskSubmit() {
         outcome: null,
       };
 
-      const nextStatus = isDelegated ? (isLead ? 'Sent for Review' : (task.status || 'Open')) : 'Sent for Review';
-
       await updateDoc(doc(db, 'tasks', task.id), {
-        status: nextStatus,
-        delegatedReviewByCreator: isDelegated && isLead ? true : !!task.delegatedReviewByCreator,
+        status: 'Sent for Review',
+        delegatedReviewByCreator: false,
         submissions: [...(task.submissions || []), newSubmission],
         updatedAt: serverTimestamp(),
       });
 
-      toast.success(isDelegated && !isLead ? 'Worker update submitted to task lead.' : 'Work submitted for review!');
+      toast.success(isDelegated ? 'Submitted for task lead review.' : 'Work submitted for review!');
       navigate(`/task/${task.id}`);
     } catch (err) {
       toast.error('Error: ' + err.message);
@@ -178,7 +176,7 @@ export default function TaskSubmit() {
               onClick={handleSubmit}
               disabled={isSaving}
             >
-              {isSaving ? 'Submitting…' : isDelegated && !isLead ? 'Submit Update' : 'Submit for Review'}
+              {isSaving ? 'Submitting…' : isDelegated ? 'Submit for Lead Review' : 'Submit for Review'}
             </button>
           </div>
         </div>

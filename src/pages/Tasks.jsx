@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Layout from '../components/Layout';
 import { db } from '../firebase';
-import { collection, deleteDoc, doc, getDocs, serverTimestamp, updateDoc, writeBatch } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDocs, query, serverTimestamp, updateDoc, where, writeBatch } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
 import {
   Plus, RefreshCw, CheckSquare, Eye, LayoutGrid,
@@ -85,11 +85,23 @@ export default function Tasks() {
     if (!userProfile) return;
     try {
       setIsLoading(true);
-      const [tasksSnap, usersSnap] = await Promise.all([
-        getDocs(collection(db, 'tasks')),
-        getDocs(collection(db, 'users')),
-      ]);
-      setTasks(tasksSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
+      const usersPromise = getDocs(collection(db, 'users'));
+
+      const taskSnapshots = manager
+        ? [await getDocs(collection(db, 'tasks'))]
+        : await Promise.all([
+            getDocs(query(collection(db, 'tasks'), where('assignedTo', '==', uid))),
+            getDocs(query(collection(db, 'tasks'), where('assignedBy', '==', uid))),
+            getDocs(query(collection(db, 'tasks'), where('workerIds', 'array-contains', uid))),
+          ]);
+
+      const taskMap = new Map();
+      taskSnapshots.flatMap((snap) => snap.docs).forEach((d) => {
+        taskMap.set(d.id, { id: d.id, ...d.data() });
+      });
+
+      const usersSnap = await usersPromise;
+      setTasks(Array.from(taskMap.values()));
       setUsers(usersSnap.docs.map((d) => ({ id: d.id, ...d.data() })));
     } catch (error) {
       console.error(error);
@@ -97,12 +109,12 @@ export default function Tasks() {
     } finally {
       setIsLoading(false);
     }
-  }, [userProfile]);
+  }, [manager, uid, userProfile]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // ── Derived lists ─────────────────────────────────────────────────────────────
-  const myTasks     = tasks.filter((t) => t.assignedTo === uid && t.status !== 'Deleted');
+  const myTasks     = tasks.filter((t) => (t.assignedTo === uid || (t.workerIds || []).includes(uid)) && t.status !== 'Deleted');
   const reviewTasks = tasks.filter((t) => (t.reviewer === uid || t.assignedBy === uid) && t.status !== 'Deleted');
 
   // For team tab: all tasks that are assigned to non-manager users (daily task roles)

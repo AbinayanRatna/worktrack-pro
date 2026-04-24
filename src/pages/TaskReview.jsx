@@ -96,14 +96,24 @@ export default function TaskReview() {
         updatedSubs[updatedSubs.length - 1] = last;
       }
 
+      const nextStatus = isDelegated && !creatorFinalReview && outcome === 'Closed'
+        ? 'Sent for Review'
+        : outcome;
+
       await updateDoc(doc(db, 'tasks', task.id), {
-        status: outcome,
-        delegatedReviewByCreator: false,
+        status: nextStatus,
+        delegatedReviewByCreator: isDelegated && !creatorFinalReview && outcome === 'Closed',
         submissions: updatedSubs,
         updatedAt: serverTimestamp(),
       });
       
-      toast.success(outcome === 'Closed' ? 'Task successfully closed!' : 'Task reopened for changes.');
+      toast.success(
+        isDelegated && !creatorFinalReview && outcome === 'Closed'
+          ? 'Approved. Sent to creator for final review.'
+          : outcome === 'Closed'
+            ? 'Task successfully closed!'
+            : 'Task reopened for changes.'
+      );
       navigate(`/task/${task.id}`);
     } catch (err) {
       toast.error('Error: ' + err.message);
