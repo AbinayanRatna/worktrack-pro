@@ -65,8 +65,22 @@ export default function TaskReview() {
   const isReviewer = task?.reviewer === uid;
   const isAssigner = task?.assignedBy === uid;
   const isDelegated = task?.taskType === 'delegated';
+  const isTaskLead = isDelegated && task?.taskLeadId === uid;
+
+  // creatorFinalReview = task lead already approved, now creator does final review
   const creatorFinalReview = isDelegated && !!task?.delegatedReviewByCreator;
-  const canCR = task && (creatorFinalReview ? isAssigner : canCloseOrReopen(role, isReviewer, isAssigner));
+
+  // Who can review:
+  // - Delegated, creator final stage: only the task creator (assignedBy)
+  // - Delegated, lead review stage: only the task lead
+  // - Non-delegated: reviewer or assigner (existing logic)
+  const canCR = task && (
+    creatorFinalReview
+      ? isAssigner
+      : isDelegated
+        ? isTaskLead
+        : canCloseOrReopen(role, isReviewer, isAssigner)
+  );
   
   const latestSubmission = (task?.submissions && task.submissions.length > 0)
     ? (creatorFinalReview
@@ -142,7 +156,9 @@ export default function TaskReview() {
         <button onClick={() => navigate(`/task/${task.id}`)} className="btn flex items-center rounded-lg border border-[var(--border-color)] bg-[var(--bg-secondary)] px-2.5 py-1.5 text-[var(--text-secondary)]">
           <ArrowLeft size={18} />
         </button>
-        <h1 className="m-0 text-[1.8rem] font-bold">Review Submission</h1>
+        <h1 className="m-0 text-[1.8rem] font-bold">
+          {isDelegated && !creatorFinalReview ? 'Task Lead Review' : 'Review Submission'}
+        </h1>
       </div>
 
       <div className="mx-auto flex max-w-[1000px] flex-col gap-6">
@@ -178,7 +194,7 @@ export default function TaskReview() {
               <RotateCcw size={18} /> {isSaving ? 'Processing…' : 'Request Changes (ReOpen)'}
             </button>
             <button className="btn btn-success flex items-center gap-2 px-6 py-3" onClick={() => handleAction('Closed')} disabled={isSaving}>
-              <CheckCircle size={18} /> {isSaving ? 'Processing…' : 'Approve & Close Task'}
+              <CheckCircle size={18} /> {isSaving ? 'Processing…' : (isDelegated && !creatorFinalReview) ? 'Approve & Send to Creator' : 'Approve & Close Task'}
             </button>
           </div>
         </div>

@@ -114,8 +114,16 @@ export default function Tasks() {
   useEffect(() => { fetchData(); }, [fetchData]);
 
   // ── Derived lists ─────────────────────────────────────────────────────────────
-  const myTasks     = tasks.filter((t) => (t.assignedTo === uid || (t.workerIds || []).includes(uid)) && t.status !== 'Deleted');
-  const reviewTasks = tasks.filter((t) => (t.reviewer === uid || t.assignedBy === uid) && t.status !== 'Deleted');
+  const myTasks     = tasks.filter((t) => (t.assignedTo === uid || t.taskLeadId === uid || (t.workerIds || []).includes(uid)) && t.status !== 'Deleted');
+  // For delegated tasks: task lead is reviewer for worker submissions (delegatedReviewByCreator = false)
+  // Task creator (assignedBy) is reviewer for final stage (delegatedReviewByCreator = true)
+  const reviewTasks = tasks.filter((t) => {
+    if (t.status === 'Deleted') return false;
+    if (t.reviewer === uid || t.assignedBy === uid) return true;
+    // Task lead should see delegated tasks in review tab when workers submit (and lead hasn't approved yet)
+    if (t.taskType === 'delegated' && t.taskLeadId === uid && !t.delegatedReviewByCreator) return true;
+    return false;
+  });
 
   // For team tab: all tasks that are assigned to non-manager users (daily task roles)
   const teamTasks = tasks.filter((t) => {

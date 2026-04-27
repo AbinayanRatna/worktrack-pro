@@ -57,6 +57,7 @@ export default function TaskDetail() {
   const [taskLeadId, setTaskLeadId] = useState('');
   const [assignedTo, setAssignedTo] = useState('');
   const [reviewer, setReviewer] = useState('');
+  const [finalReviewer, setFinalReviewer] = useState('');
   const [dateAssigned, setDateAssigned] = useState(todayStr());
   const [dueDate, setDueDate] = useState('');
   const [titleError, setTitleError] = useState('');
@@ -79,7 +80,7 @@ export default function TaskDetail() {
   const canDelete   = task && canDeleteTask(role, isAssigner);
   const canCR       = task && canCloseOrReopen(role, isReviewer, isAssigner);
   const canDateEdit = task && canChangeDueDate(role, isReviewer);
-  const canManageDelegation = task && (isAssigner || isTaskLead);
+  const canManageDelegation = task && isTaskLead;
 
   const assignableUsers = getAssignableUsers(users, userProfile);
   const delegatedWorkerOptions = task
@@ -130,7 +131,7 @@ export default function TaskDetail() {
         setAssignedTo(canCreateTask(role) && getAssignableUsers(fetchedUsers, userProfile).length > 0 ? (uid || '') : '');
         setIsTransferable(false);
         setTaskLeadId(uid || '');
-        setReviewer(''); setDateAssigned(todayStr()); setDueDate(todayStr());
+        setReviewer(''); setFinalReviewer(''); setDateAssigned(todayStr()); setDueDate(todayStr());
         setTitleError('');
       }
     } catch (err) {
@@ -156,6 +157,7 @@ export default function TaskDetail() {
     }
     if (isTransferable) {
       if (!taskLeadId) { toast.error('Task lead is required for delegated tasks.'); return; }
+      if (!finalReviewer) { toast.error('Final reviewer is required for delegated tasks.'); return; }
     } else if (!assignedTo) {
       toast.error('Please select someone to assign the task to.');
       return;
@@ -176,7 +178,7 @@ export default function TaskDetail() {
         workerIds: [],
         assignedTo: isTransferable ? taskLeadId : assignedTo,
         assignedBy: uid,
-        reviewer: isTransferable ? taskLeadId : reviewer,
+        reviewer: isTransferable ? finalReviewer : reviewer,
         dateAssigned,
         dueDate,
         status: 'Open',
@@ -212,7 +214,8 @@ export default function TaskDetail() {
 
   async function handleSendToCreator() {
     if (!task || task.taskType !== 'delegated' || !isTaskLead) return;
-    if (!window.confirm('Send this delegated task to creator for final approval?')) return;
+    if (task.delegatedReviewByCreator) return; // already escalated
+    if (!window.confirm('Send this delegated task to the task creator for final approval?')) return;
     try {
       setIsSaving(true);
       await updateDoc(doc(db, 'tasks', task.id), {
@@ -220,7 +223,7 @@ export default function TaskDetail() {
         delegatedReviewByCreator: true,
         updatedAt: serverTimestamp(),
       });
-      toast.success('Sent to creator for final approval.');
+      toast.success('Sent to task creator for final approval.');
       navigate(`/task/${task.id}`);
     } catch (err) {
       toast.error('Error: ' + err.message);
@@ -326,6 +329,17 @@ export default function TaskDetail() {
                     </select>
                   </div>
                 )}
+                {isTransferable && (
+                  <div>
+                    <label className={labelClass}>Final Reviewer <span style={{ color: 'var(--danger)' }}>*</span></label>
+                    <select value={finalReviewer} onChange={(e) => setFinalReviewer(e.target.value)} required className={`${inputClass} px-4 py-4 text-[1.1rem]`}>
+                      <option value="">Select final reviewer…</option>
+                      {users.map((u) => (
+                        <option key={u.id} value={u.id}>{u.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div className="form-grid-2-1 -mt-2">
@@ -414,21 +428,22 @@ export default function TaskDetail() {
               {/* Top Action Bar */}
               <div className="-mt-3.5 flex flex-wrap items-center gap-2.5">
                 
-                {/* 1. Add Submission (Primary Active) */}
-                {((task.taskType !== 'delegated' && isAssignee) || (task.taskType === 'delegated' && (isTaskLead || (task.workerIds || []).includes(uid)))) && (task.status === 'Open' || task.status === 'ReOpen') && (
+                {/* 1. Add Submission — non-delegated: assignee only | delegated: workers only (NOT task lead) */}
+                {((task.taskType !== 'delegated' && isAssignee) || (task.taskType === 'delegated' && !isTaskLead && (task.workerIds || []).includes(uid))) && (task.status === 'Open' || task.status === 'ReOpen') && (
                   <button onClick={() => navigate(`/task/${task.id}/submit`)} className="btn btn-primary flex items-center gap-2 px-4.5 py-2 text-[0.9rem]">
                     <Send size={16} /> Add Submission
                   </button>
                 )}
 
-                {task.taskType === 'delegated' && isTaskLead && (task.status === 'Open' || task.status === 'ReOpen') && (
+                {/* Task Lead: Send to Creator — only after a worker has submitted (status = Sent for Review) */}
+                {task.taskType === 'delegated' && isTaskLead && !task.delegatedReviewByCreator && task.status === 'Sent for Review' && (
                   <button onClick={handleSendToCreator} className="btn btn-secondary flex items-center gap-2 px-4.5 py-2 text-[0.9rem]" disabled={isSaving}>
-                    <Send size={16} /> Send to Creator
+                    <Send size={16} /> Send to Creator for Final Review
                   </button>
                 )}
 
                 {/* 2. Review Task (Primary Active) */}
-                {canCR && task.status === 'Sent for Review' && (
+                {canCR && task.status === 'Sent for Review' && !(task.taskType === 'delegated' && !task.delegatedReviewByCreator && isAssigner) && (
                   <button onClick={() => navigate(`/task/${task.id}/review`)} className="btn flex items-center gap-2 border-0 px-4.5 py-2 text-[0.9rem] text-white" style={{ background: 'var(--status-review-color)' }}>
                     <CheckCircle size={16} /> Review Submission
                   </button>
@@ -552,7 +567,7 @@ export default function TaskDetail() {
 
 
               {/* ── Read-only note for others ────────────────────────────────── */}
-              {!isAssignee && !canCR && (
+              {!isAssignee && !isTaskLead && !(task.taskType === 'delegated' && (task.workerIds || []).includes(uid)) && !canCR && (
                 <div className="mt-8 flex items-center gap-2.5 rounded-lg border border-dashed border-[var(--border-color)] bg-[var(--bg-secondary)] px-5 py-4">
                   <AlertCircle size={18} color="var(--text-tertiary)" />
                   <span className="text-[0.95rem] text-[var(--text-tertiary)]">You are viewing this task in read-only mode.</span>
@@ -589,4 +604,3 @@ function Divider({ label, color }) {
     </div>
   );
 }
-
