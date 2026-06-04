@@ -7,6 +7,8 @@ import TaskDetail from './pages/TaskDetail';
 import TaskSubmit from './pages/TaskSubmit';
 import TaskReview from './pages/TaskReview';
 import TaskHistory from './pages/TaskHistory';
+import TaskThreads from './pages/TaskThreads';
+import TaskThreadDetail from './pages/TaskThreadDetail';
 import Users from './pages/Users';
 import SignupRequests from './pages/SignupRequests';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -58,6 +60,22 @@ function App() {
             element={
               <ProtectedRoute>
                 <TaskHistory />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/task/:id/threads"
+            element={
+              <ProtectedRoute>
+                <TaskThreads />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/task/:id/threads/:threadId"
+            element={
+              <ProtectedRoute>
+                <TaskThreadDetail />
               </ProtectedRoute>
             }
           />
