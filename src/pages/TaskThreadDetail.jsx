@@ -4,12 +4,13 @@ import Layout from '../components/Layout';
 import { db } from '../firebase';
 import {
   collection, addDoc, getDocs, getDoc,
-  doc, serverTimestamp, query, orderBy, updateDoc, increment,
+  doc, serverTimestamp, query, orderBy, updateDoc, increment, deleteDoc,
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Trash2 } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
+import { isManager } from '../constants/roles';
 
 function fmt(ts) {
   if (!ts) return '—';
@@ -50,6 +51,10 @@ export default function TaskThreadDetail() {
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
+  const role = userProfile?.role;
+  const uid = userProfile?.id;
+  const manager = isManager(role);
+
   const fetchData = useCallback(async () => {
     try {
       setIsLoading(true);
@@ -89,6 +94,21 @@ export default function TaskThreadDetail() {
       bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, isLoading]);
+
+  async function handleDeleteMessage(msg) {
+    if (!window.confirm('Delete this message?')) return;
+    try {
+      await deleteDoc(doc(db, 'tasks', id, 'threads', threadId, 'messages', msg.id));
+      // Decrement message count
+      await updateDoc(doc(db, 'tasks', id, 'threads', threadId), {
+        messageCount: increment(-1),
+      });
+      toast.success('Message deleted.');
+      fetchData();
+    } catch (err) {
+      toast.error('Error: ' + err.message);
+    }
+  }
 
   async function handleSendMessage(e) {
     e?.preventDefault();
@@ -213,22 +233,33 @@ export default function TaskThreadDetail() {
                         <span style={{ color: 'var(--text-tertiary)', fontSize: '0.7rem' }}>{msg.senderRole}</span>
                       </div>
                     )}
-                    <div
-                      style={{
-                        padding: '0.6rem 0.9rem',
-                        borderRadius: isMe ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
-                        background: isMe
-                          ? 'var(--accent-primary)'
-                          : 'var(--bg-tertiary)',
-                        color: isMe ? 'white' : 'var(--text-primary)',
-                        fontSize: '0.9rem',
-                        lineHeight: '1.55',
-                        wordBreak: 'break-word',
-                        whiteSpace: 'pre-wrap',
-                        border: isMe ? 'none' : '1px solid var(--border-color)',
-                      }}
-                    >
-                      {msg.text}
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.4rem', flexDirection: isMe ? 'row' : 'row-reverse' }}>
+                      {(manager || msg.senderId === uid) && (
+                        <button
+                          onClick={() => handleDeleteMessage(msg)}
+                          style={{ opacity: 0.4, background: 'none', border: 'none', cursor: 'pointer', padding: '2px', color: 'var(--danger)', flexShrink: 0 }}
+                          onMouseEnter={e => e.currentTarget.style.opacity = 1}
+                          onMouseLeave={e => e.currentTarget.style.opacity = 0.4}
+                          title="Delete message"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                      <div
+                        style={{
+                          padding: '0.6rem 0.9rem',
+                          borderRadius: isMe ? '16px 4px 16px 16px' : '4px 16px 16px 16px',
+                          background: isMe ? 'var(--accent-primary)' : 'var(--bg-tertiary)',
+                          color: isMe ? 'white' : 'var(--text-primary)',
+                          fontSize: '0.9rem',
+                          lineHeight: '1.55',
+                          wordBreak: 'break-word',
+                          whiteSpace: 'pre-wrap',
+                          border: isMe ? 'none' : '1px solid var(--border-color)',
+                        }}
+                      >
+                        {msg.text}
+                      </div>
                     </div>
                     <span style={{ fontSize: '0.68rem', color: 'var(--text-tertiary)', marginTop: '0.25rem' }}>
                       {fmt(msg.createdAt)}
