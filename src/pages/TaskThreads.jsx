@@ -4,16 +4,17 @@ import Layout from '../components/Layout';
 import { db } from '../firebase';
 import {
   collection, addDoc, getDocs, getDoc,
-  doc, serverTimestamp, query, orderBy, deleteDoc,
+  doc, serverTimestamp, query, orderBy, deleteDoc, updateDoc,
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
-import { ArrowLeft, Plus, MessageSquare, X, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, MessageSquare, X, Trash2, Pencil, Check } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
 import { isManager } from '../constants/roles';
 
 const inputClass = 'w-full rounded-lg border border-[var(--border-color)] bg-[var(--bg-tertiary)] px-4 py-3.5 text-[0.95rem] text-white outline-none resize-y';
 const labelClass = 'mb-2 block text-[0.82rem] font-medium uppercase tracking-[0.04em] text-[var(--text-secondary)]';
+const EDIT_LIMIT_MS = 10 * 60 * 1000; // 10 minutes
 
 function fmt(ts) {
   if (!ts) return '—';
@@ -22,6 +23,12 @@ function fmt(ts) {
     day: 'numeric', month: 'short', year: 'numeric',
     hour: '2-digit', minute: '2-digit',
   });
+}
+
+function isWithinEditLimit(ts) {
+  if (!ts) return false;
+  const date = ts?.toDate ? ts.toDate() : new Date(ts);
+  return Date.now() - date.getTime() < EDIT_LIMIT_MS;
 }
 
 export default function TaskThreads() {
@@ -37,6 +44,11 @@ export default function TaskThreads() {
   const [showNewThread, setShowNewThread] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
+
+  // Edit thread state
+  const [editingThreadId, setEditingThreadId] = useState(null);
+  const [editTitle, setEditTitle] = useState('');
+  const [editDescription, setEditDescription] = useState('');
 
   const role = userProfile?.role;
   const uid = userProfile?.id;
@@ -95,9 +107,7 @@ export default function TaskThreads() {
         messageCount: 0,
       });
       toast.success('Thread created!');
-      setNewTitle('');
-      setNewDescription('');
-      setShowNewThread(false);
+      setNewTitle(''); setNewDescription(''); setShowNewThread(false);
       fetchData();
     } catch (err) {
       toast.error('Error: ' + err.message);
@@ -114,6 +124,23 @@ export default function TaskThreads() {
       await Promise.all(msgsSnap.docs.map(d => deleteDoc(d.ref)));
       await deleteDoc(doc(db, 'tasks', id, 'threads', thread.id));
       toast.success('Thread deleted.');
+      fetchData();
+    } catch (err) {
+      toast.error('Error: ' + err.message);
+    }
+  }
+
+  async function handleEditThread(e, thread) {
+    e.stopPropagation();
+    if (!editTitle.trim()) { toast.error('Title cannot be empty.'); return; }
+    try {
+      await updateDoc(doc(db, 'tasks', id, 'threads', thread.id), {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        editedAt: serverTimestamp(),
+      });
+      toast.success('Thread updated.');
+      setEditingThreadId(null);
       fetchData();
     } catch (err) {
       toast.error('Error: ' + err.message);
@@ -148,42 +175,24 @@ export default function TaskThreads() {
         <div className="glass-panel mb-6 p-6" style={{ borderLeft: '3px solid var(--accent-primary)' }}>
           <div className="mb-4 flex items-center justify-between">
             <h3 className="text-[1rem] font-semibold">Create New Thread</h3>
-            <button
-              onClick={() => { setShowNewThread(false); setNewTitle(''); setNewDescription(''); }}
-              className="text-[var(--text-secondary)] hover:text-white"
-            >
+            <button onClick={() => { setShowNewThread(false); setNewTitle(''); setNewDescription(''); }} className="text-[var(--text-secondary)] hover:text-white">
               <X size={18} />
             </button>
           </div>
           <form onSubmit={handleCreateThread} className="flex flex-col gap-4">
             <div>
               <label className={labelClass}>Thread Title <span style={{ color: 'var(--danger)' }}>*</span></label>
-              <input
-                type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)}
-                placeholder="e.g. API design discussion" className={inputClass}
-                style={{ resize: 'none' }} maxLength={100}
-              />
+              <input type="text" value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="e.g. API design discussion" className={inputClass} style={{ resize: 'none' }} maxLength={100} />
             </div>
             <div>
-              <label className={labelClass}>
-                Description{' '}
-                <span style={{ color: 'var(--text-tertiary)', textTransform: 'none', fontSize: '0.75rem' }}>(optional)</span>
-              </label>
-              <textarea
-                value={newDescription} onChange={e => setNewDescription(e.target.value)}
-                placeholder="Brief description of what this thread is about…"
-                className={inputClass} rows={3}
-              />
+              <label className={labelClass}>Description <span style={{ color: 'var(--text-tertiary)', textTransform: 'none', fontSize: '0.75rem' }}>(optional)</span></label>
+              <textarea value={newDescription} onChange={e => setNewDescription(e.target.value)} placeholder="Brief description of what this thread is about…" className={inputClass} rows={3} />
             </div>
             <div className="flex gap-3">
               <button type="submit" className="btn btn-primary" disabled={isSaving}>
                 {isSaving ? 'Creating…' : 'Create Thread'}
               </button>
-              <button
-                type="button"
-                onClick={() => { setShowNewThread(false); setNewTitle(''); setNewDescription(''); }}
-                className="btn btn-secondary"
-              >
+              <button type="button" onClick={() => { setShowNewThread(false); setNewTitle(''); setNewDescription(''); }} className="btn btn-secondary">
                 Cancel
               </button>
             </div>
@@ -196,9 +205,7 @@ export default function TaskThreads() {
         <div className="glass-panel px-8 py-14 text-center">
           <div className="mb-3 text-[2.5rem]">💬</div>
           <p className="text-[1rem] font-medium text-white mb-1">No discussions yet</p>
-          <p className="text-[var(--text-secondary)] text-[0.9rem]">
-            Start a thread to discuss topics related to this task.
-          </p>
+          <p className="text-[var(--text-secondary)] text-[0.9rem]">Start a thread to discuss topics related to this task.</p>
           <button onClick={() => setShowNewThread(true)} className="btn btn-primary mt-5">
             <Plus size={16} /> Create First Thread
           </button>
@@ -207,63 +214,89 @@ export default function TaskThreads() {
         <div className="flex flex-col gap-3.5">
           {threads.map((thread) => {
             const canDelete = manager || thread.createdBy === uid;
+            const canEdit = thread.createdBy === uid && isWithinEditLimit(thread.createdAt);
+            const isEditing = editingThreadId === thread.id;
+
             return (
               <div
                 key={thread.id}
                 className="glass-panel"
-                onClick={() => navigate(`/task/${id}/threads/${thread.id}`)}
+                onClick={() => !isEditing && navigate(`/task/${id}/threads/${thread.id}`)}
                 style={{
-                  padding: '1.25rem 1.5rem', cursor: 'pointer',
-                  borderLeft: '3px solid transparent', transition: 'border-color 0.2s',
+                  padding: '1.25rem 1.5rem',
+                  cursor: isEditing ? 'default' : 'pointer',
+                  borderLeft: `3px solid ${isEditing ? 'var(--accent-primary)' : 'transparent'}`,
+                  transition: 'border-color 0.2s',
                 }}
-                onMouseEnter={e => e.currentTarget.style.borderLeftColor = 'var(--accent-primary)'}
-                onMouseLeave={e => e.currentTarget.style.borderLeftColor = 'transparent'}
+                onMouseEnter={e => { if (!isEditing) e.currentTarget.style.borderLeftColor = 'var(--accent-primary)'; }}
+                onMouseLeave={e => { if (!isEditing) e.currentTarget.style.borderLeftColor = 'transparent'; }}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex items-start gap-3 flex-1">
-                    <div
-                      className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                      style={{ background: 'rgba(59,130,246,0.15)' }}
-                    >
-                      <MessageSquare size={16} color="var(--accent-primary)" />
+                {isEditing ? (
+                  /* Edit Mode */
+                  <div className="flex flex-col gap-3" onClick={e => e.stopPropagation()}>
+                    <div>
+                      <label className={labelClass}>Thread Title <span style={{ color: 'var(--danger)' }}>*</span></label>
+                      <input
+                        type="text" value={editTitle} onChange={e => setEditTitle(e.target.value)}
+                        className={inputClass} style={{ resize: 'none' }} maxLength={100} autoFocus
+                      />
                     </div>
-                    <div className="flex-1">
-                      <h3 className="text-[0.98rem] font-semibold mb-1">{thread.title}</h3>
-                      {thread.description && (
-                        <p className="text-[0.84rem] text-[var(--text-secondary)] mb-2">
-                          {thread.description}
-                        </p>
-                      )}
-                      <div className="flex flex-wrap items-center gap-3 text-[0.75rem] text-[var(--text-tertiary)]">
-                        <span>
-                          Started by{' '}
-                          <span className="text-[var(--text-secondary)]">
-                            {thread.createdByName || userName(thread.createdBy)}
-                          </span>
-                        </span>
-                        <span>·</span>
-                        <span>{fmt(thread.createdAt)}</span>
+                    <div>
+                      <label className={labelClass}>Description <span style={{ color: 'var(--text-tertiary)', textTransform: 'none', fontSize: '0.75rem' }}>(optional)</span></label>
+                      <textarea value={editDescription} onChange={e => setEditDescription(e.target.value)} className={inputClass} rows={2} />
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={(e) => handleEditThread(e, thread)} className="btn btn-primary px-3 py-1.5 text-[0.82rem]">
+                        <Check size={14} /> Save
+                      </button>
+                      <button onClick={(e) => { e.stopPropagation(); setEditingThreadId(null); }} className="btn btn-secondary px-3 py-1.5 text-[0.82rem]">
+                        <X size={14} /> Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* Normal View */
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-start gap-3 flex-1">
+                      <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: 'rgba(59,130,246,0.15)' }}>
+                        <MessageSquare size={16} color="var(--accent-primary)" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="text-[0.98rem] font-semibold mb-1">
+                          {thread.title}
+                          {thread.editedAt && <span style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginLeft: '0.4rem' }}>(edited)</span>}
+                        </h3>
+                        {thread.description && (
+                          <p className="text-[0.84rem] text-[var(--text-secondary)] mb-2">{thread.description}</p>
+                        )}
+                        <div className="flex flex-wrap items-center gap-3 text-[0.75rem] text-[var(--text-tertiary)]">
+                          <span>Started by <span className="text-[var(--text-secondary)]">{thread.createdByName || userName(thread.createdBy)}</span></span>
+                          <span>·</span>
+                          <span>{fmt(thread.createdAt)}</span>
+                        </div>
                       </div>
                     </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="rounded-full px-2.5 py-0.5 text-[0.75rem] font-semibold" style={{ background: 'rgba(59,130,246,0.13)', color: 'var(--accent-secondary)' }}>
+                        {thread.messageCount} {thread.messageCount === 1 ? 'reply' : 'replies'}
+                      </span>
+                      {canEdit && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setEditingThreadId(thread.id); setEditTitle(thread.title); setEditDescription(thread.description || ''); }}
+                          className="btn btn-secondary px-2 py-1 text-[0.78rem]"
+                          title="Edit thread (within 10 min)"
+                        >
+                          <Pencil size={13} />
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button onClick={(e) => handleDeleteThread(e, thread)} className="btn btn-danger px-2 py-1 text-[0.78rem]" title="Delete thread">
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
                   </div>
-                  <div className="flex shrink-0 items-center gap-2">
-                    <span
-                      className="rounded-full px-2.5 py-0.5 text-[0.75rem] font-semibold"
-                      style={{ background: 'rgba(59,130,246,0.13)', color: 'var(--accent-secondary)' }}
-                    >
-                      {thread.messageCount} {thread.messageCount === 1 ? 'reply' : 'replies'}
-                    </span>
-                    {canDelete && (
-                      <button
-                        onClick={(e) => handleDeleteThread(e, thread)}
-                        className="btn btn-danger px-2 py-1 text-[0.78rem]"
-                        title="Delete thread"
-                      >
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                </div>
+                )}
               </div>
             );
           })}
