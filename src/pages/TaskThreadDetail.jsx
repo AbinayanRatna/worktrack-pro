@@ -514,7 +514,7 @@ export default function TaskThreadDetail() {
         className="glass-panel p-4"
         style={{ borderTop: "1px solid var(--border-color)" }}
       >
-        <form onSubmit={handleSendMessage} className="flex gap-3 items-end">
+        <form onSubmit={handleSendMessage} className="flex gap-3 items-center">
           <div className="flex-1">
             <textarea
               ref={textareaRef}
