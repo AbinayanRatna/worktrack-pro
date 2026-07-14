@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import { db } from '../firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, collection, getDocs } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { canCloseOrReopen } from '../constants/roles';
 import { STATUS_META } from './Tasks';
 import toast from 'react-hot-toast';
@@ -24,7 +25,8 @@ export default function TaskReview() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { userProfile } = useAuth();
-  
+  const confirm = useConfirm();
+
   const [task, setTask] = useState(null);
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -95,7 +97,13 @@ export default function TaskReview() {
     }
     
     const actionText = outcome === 'Closed' ? 'Approve and close' : 'Reject and ReOpen';
-    if (!window.confirm(`${actionText} this task?`)) return;
+    const isApproving = outcome === 'Closed';
+    const ok = await confirm({
+      message: `${actionText} this task?`,
+      confirmText: isApproving ? 'Approve' : 'Reject',
+      type: isApproving ? 'primary' : 'danger',
+    });
+    if (!ok) return;
 
     try {
       setIsSaving(true);
