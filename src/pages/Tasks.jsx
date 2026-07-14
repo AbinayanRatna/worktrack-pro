@@ -15,6 +15,7 @@ import {
   isManager, requiresDailyTask, canCreateTask, canDeleteTask,
   DAILY_TASK_ROLES,
 } from '../constants/roles';
+import { useConfirm } from '../context/ConfirmContext';
 
 // ── Status helpers ────────────────────────────────────────────────────────────
 export const STATUS_META = {
@@ -51,6 +52,7 @@ export default function Tasks() {
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
 
+  const confirm = useConfirm();
   const role = userProfile?.role;
   const uid = userProfile?.id;
   const manager = isManager(role);
@@ -227,7 +229,8 @@ const reviewTasks = tasks.filter((t) => {
       ? 'Restore this task from Deleted bin?'
       : `Restore ${taskIds.length} tasks from Deleted bin?`;
 
-    if (!window.confirm(confirmText)) return;
+    const ok = await confirm({ message: confirmText, confirmText: 'Restore', type: 'primary' });
+    if (!ok) return;
 
     try {
       setIsRestoring(true);
@@ -274,7 +277,8 @@ const reviewTasks = tasks.filter((t) => {
       ? 'Permanently delete this task? This cannot be undone.'
       : `Permanently delete ${taskIds.length} tasks? This cannot be undone.`;
 
-    if (!window.confirm(confirmText)) return;
+    const ok = await confirm({ message: confirmText, title: 'Permanently Delete', confirmText: 'Delete', type: 'danger' });
+    if (!ok) return;
 
     try {
       setIsDeleting(true);
