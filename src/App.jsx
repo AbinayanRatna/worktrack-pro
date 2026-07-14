@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider } from './context/AuthContext';
+import { ConfirmProvider } from './context/ConfirmContext';
 import Login from './pages/Login';
 import Tasks from './pages/Tasks';
 import TaskDetail from './pages/TaskDetail';
@@ -18,8 +19,9 @@ function App() {
   return (
     <Router>
       <AuthProvider>
-        <Toaster position="top-right" />
-        <Routes>
+        <ConfirmProvider>
+          <Toaster position="top-right" />
+          <Routes>
           <Route path="/login" element={<Login />} />
 
           {/* Tasks — all authenticated & approved users */}
@@ -100,7 +102,8 @@ function App() {
               </ProtectedRoute>
             }
           />
-        </Routes>
+          </Routes>
+        </ConfirmProvider>
       </AuthProvider>
     </Router>
   );
