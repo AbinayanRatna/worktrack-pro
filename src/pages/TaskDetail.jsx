@@ -7,6 +7,7 @@ import {
   doc, serverTimestamp,
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import {
   canDeleteTask, canCloseOrReopen, canChangeDueDate,
   getAssignableUsers, canCreateTask,
@@ -42,7 +43,8 @@ export default function TaskDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
   const { userProfile } = useAuth();
-  
+  const confirm = useConfirm();
+
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -212,7 +214,8 @@ export default function TaskDetail() {
 
   async function handleSendToCreator() {
     if (!task || task.taskType !== 'delegated' || !isTaskLead) return;
-    if (!window.confirm('Send this delegated task to creator for final approval?')) return;
+    const ok = await confirm({ message: 'Send this delegated task to creator for final approval?', confirmText: 'Send to Creator', type: 'primary' });
+    if (!ok) return;
     try {
       setIsSaving(true);
       await updateDoc(doc(db, 'tasks', task.id), {
@@ -236,7 +239,8 @@ export default function TaskDetail() {
       toast('This task is already in Deleted tab.');
       return;
     }
-    if (!window.confirm(`Move "${task.title}" to Deleted tasks? You can permanently delete it later from the Deleted tab.`)) return;
+    const ok = await confirm({ message: `Move '${task.title}' to Deleted tasks? You can restore it later.`, title: 'Delete Task', confirmText: 'Move to Deleted', type: 'danger' });
+    if (!ok) return;
     try {
       setIsDeleting(true);
       await updateDoc(doc(db, 'tasks', task.id), {
