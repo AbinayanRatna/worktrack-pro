@@ -415,13 +415,13 @@ export default function TaskDetail() {
               <div className="-mt-3.5 flex flex-wrap items-center gap-2.5">
                 
                 {/* 1. Add Submission (Primary Active) */}
-                {((task.taskType !== 'delegated' && isAssignee) || (task.taskType === 'delegated' && (isTaskLead || (task.workerIds || []).includes(uid)))) && (task.status === 'Open' || task.status === 'ReOpen') && (
+                {((task.taskType !== 'delegated' && isAssignee) || (task.taskType === 'delegated' && (task.workerIds || []).includes(uid))) && (task.status === 'Open' || task.status === 'ReOpen') && (
                   <button onClick={() => navigate(`/task/${task.id}/submit`)} className="btn btn-primary flex items-center gap-2 px-4.5 py-2 text-[0.9rem]">
                     <Send size={16} /> Add Submission
                   </button>
                 )}
 
-                {task.taskType === 'delegated' && isTaskLead && (task.status === 'Open' || task.status === 'ReOpen') && (
+                {task.taskType === 'delegated' && isTaskLead && task.status === 'Sent for Review' && (
                   <button onClick={handleSendToCreator} className="btn btn-secondary flex items-center gap-2 px-4.5 py-2 text-[0.9rem]" disabled={isSaving}>
                     <Send size={16} /> Send to Creator
                   </button>
