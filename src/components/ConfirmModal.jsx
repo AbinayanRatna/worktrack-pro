@@ -2,11 +2,22 @@ import { useEffect, useRef } from 'react';
 
 export default function ConfirmModal({ message, title, confirmText, cancelText, type, onConfirm, onCancel }) {
   const cancelRef = useRef(null);
+  const confirmRef = useRef(null);
 
   useEffect(() => {
     cancelRef.current?.focus();
 
-    const onKey = (e) => { if (e.key === 'Escape') onCancel(); };
+    const onKey = (e) => {
+      if (e.key === 'Escape') onCancel();
+      if (e.key === 'Tab') {
+        const els = [cancelRef.current, confirmRef.current].filter(Boolean);
+        if (!els.length) return;
+        e.preventDefault();
+        const idx = els.indexOf(document.activeElement);
+        const next = e.shiftKey ? (idx - 1 + els.length) % els.length : (idx + 1) % els.length;
+        els[next].focus();
+      }
+    };
     document.addEventListener('keydown', onKey);
 
     const prev = document.body.style.overflow;
@@ -52,7 +63,7 @@ export default function ConfirmModal({ message, title, confirmText, cancelText, 
           <button ref={cancelRef} className="btn btn-secondary" onClick={onCancel}>
             {cancelText}
           </button>
-          <button className={`btn ${type === 'danger' ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirm}>
+          <button ref={confirmRef} className={`btn ${type === 'danger' ? 'btn-danger' : 'btn-primary'}`} onClick={onConfirm}>
             {confirmText}
           </button>
         </div>

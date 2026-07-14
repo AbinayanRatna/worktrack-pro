@@ -18,15 +18,15 @@ export function ConfirmProvider({ children }) {
     });
   }, []);
 
-  const handleConfirm = () => {
+  const handleConfirm = useCallback(() => {
     setState(null);
     resolveRef.current?.(true);
-  };
+  }, []);
 
-  const handleCancel = () => {
+  const handleCancel = useCallback(() => {
     setState(null);
     resolveRef.current?.(false);
-  };
+  }, []);
 
   return (
     <ConfirmContext.Provider value={confirm}>
