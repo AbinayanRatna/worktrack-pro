@@ -3,6 +3,7 @@ import Layout from '../components/Layout';
 import { db } from '../firebase';
 import { collection, getDocs, doc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { ROLES } from '../constants/roles';
 import toast from 'react-hot-toast';
 import { RefreshCw, Users as UsersIcon } from 'lucide-react';
@@ -22,6 +23,7 @@ const ASSIGNABLE_ROLES_LIST = ROLES; // all roles available to pick
 
 export default function Users() {
   const { userProfile } = useAuth();
+  const confirm = useConfirm();
   const [users, setUsers] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [savingId, setSavingId] = useState(null);
@@ -42,7 +44,8 @@ export default function Users() {
   useEffect(() => { fetchUsers(); }, [fetchUsers]);
 
   const handleRoleChange = async (userId, newRole) => {
-    if (!window.confirm(`Change this user's role to "${newRole}"?`)) return;
+    const ok = await confirm({ message: `Change this user's role to '${newRole}'?`, confirmText: 'Change Role', type: 'primary' });
+    if (!ok) return;
     try {
       setSavingId(userId);
       await updateDoc(doc(db, 'users', userId), { role: newRole });
