@@ -16,6 +16,7 @@ import {
   deleteDoc,
 } from "firebase/firestore";
 import { useAuth } from "../context/AuthContext";
+import { useConfirm } from "../context/ConfirmContext";
 import { ArrowLeft, Send, Trash2, Pencil, Check, X } from "lucide-react";
 import LoadingSpinner from "../components/LoadingSpinner";
 import toast from "react-hot-toast";
@@ -87,6 +88,7 @@ export default function TaskThreadDetail() {
   const bottomRef = useRef(null);
   const textareaRef = useRef(null);
 
+  const confirm = useConfirm();
   const role = userProfile?.role;
   const uid = userProfile?.id;
   const manager = isManager(role);
@@ -133,7 +135,8 @@ export default function TaskThreadDetail() {
   }, [messages, isLoading]);
 
   async function handleDeleteMessage(msg) {
-    if (!window.confirm("Delete this message?")) return;
+    const ok = await confirm({ message: "Delete this message?", confirmText: "Delete", type: "danger" });
+    if (!ok) return;
     try {
       await deleteDoc(
         doc(db, "tasks", id, "threads", threadId, "messages", msg.id),

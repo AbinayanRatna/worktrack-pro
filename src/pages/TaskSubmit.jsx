@@ -4,6 +4,7 @@ import Layout from '../components/Layout';
 import { db } from '../firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, collection, getDocs } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { STATUS_META } from './Tasks';
 import toast from 'react-hot-toast';
 import { ArrowLeft, Send } from 'lucide-react';
@@ -22,6 +23,7 @@ export default function TaskSubmit() {
   const [submitNote, setSubmitNote] = useState('');
 
   const uid = userProfile?.id;
+  const confirm = useConfirm();
 
   const fetchData = useCallback(async () => {
     try {
@@ -67,7 +69,8 @@ export default function TaskSubmit() {
       toast.error('Please add a submission note.');
       return;
     }
-    if (!window.confirm('Submit this task for review?')) return;
+    const ok = await confirm({ message: 'Submit this task for review?', confirmText: 'Submit', type: 'primary' });
+    if (!ok) return;
 
     try {
       setIsSaving(true);
