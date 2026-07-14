@@ -4,10 +4,12 @@ import { db } from '../firebase';
 import { collection, getDocs, addDoc, deleteDoc, doc } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { Shield, Plus, Trash2 } from 'lucide-react';
+import { useConfirm } from '../context/ConfirmContext';
 
 import LoadingSpinner from '../components/LoadingSpinner';
 
 export default function Roles() {
+  const confirm = useConfirm();
   const [roles, setRoles] = useState([]);
   const [newRoleName, setNewRoleName] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -50,7 +52,8 @@ export default function Roles() {
   };
 
   const handleDeleteRole = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this custom role?")) return;
+    const ok = await confirm({ message: 'Are you sure you want to delete this custom role?', title: 'Delete Role', confirmText: 'Delete', type: 'danger' });
+    if (!ok) return;
     try {
       setIsSaving(true);
       await deleteDoc(doc(db, 'roles', id));
