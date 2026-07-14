@@ -7,6 +7,7 @@ import {
   doc, serverTimestamp, query, orderBy, deleteDoc, updateDoc,
 } from 'firebase/firestore';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { ArrowLeft, Plus, MessageSquare, X, Trash2, Pencil, Check } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 import toast from 'react-hot-toast';
@@ -49,6 +50,8 @@ export default function TaskThreads() {
   const [editingThreadId, setEditingThreadId] = useState(null);
   const [editTitle, setEditTitle] = useState('');
   const [editDescription, setEditDescription] = useState('');
+
+  const confirm = useConfirm();
 
   const role = userProfile?.role;
   const uid = userProfile?.id;
@@ -118,7 +121,8 @@ export default function TaskThreads() {
 
   async function handleDeleteThread(e, thread) {
     e.stopPropagation();
-    if (!window.confirm(`Delete thread "${thread.title}"? All messages will be lost.`)) return;
+    const ok = await confirm({ message: `Delete thread "${thread.title}"? All messages will be lost.`, title: 'Delete Thread', confirmText: 'Delete', type: 'danger' });
+    if (!ok) return;
     try {
       const msgsSnap = await getDocs(collection(db, 'tasks', id, 'threads', thread.id, 'messages'));
       await Promise.all(msgsSnap.docs.map(d => deleteDoc(d.ref)));
