@@ -4,6 +4,7 @@ import { db } from '../firebase';
 import { collection, getDocs, doc, updateDoc, setDoc, query, orderBy } from 'firebase/firestore';
 import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { CheckCircle, XCircle, Clock, Users, RefreshCw } from 'lucide-react';
 import LoadingSpinner from '../components/LoadingSpinner';
 
@@ -15,6 +16,7 @@ const STATUS_COLORS = {
 
 export default function SignupRequests() {
   const { userProfile } = useAuth();
+  const confirm = useConfirm();
   const [requests, setRequests] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState('pending');
@@ -37,7 +39,8 @@ export default function SignupRequests() {
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
   const handleApprove = async (request) => {
-    if (!window.confirm(`Approve signup request for ${request.name} as ${request.role}?`)) return;
+    const ok = await confirm({ message: `Approve signup request for ${request.name} as ${request.role}?`, confirmText: 'Approve', type: 'primary' });
+    if (!ok) return;
     try {
       setProcessingId(request.id);
       // Create user profile using the role they requested
@@ -63,7 +66,8 @@ export default function SignupRequests() {
   };
 
   const handleReject = async (request) => {
-    if (!window.confirm(`Reject signup request for ${request.name}? This cannot be undone.`)) return;
+    const ok = await confirm({ message: `Reject signup request for ${request.name}? This cannot be undone.`, title: 'Reject Request', confirmText: 'Reject', type: 'danger' });
+    if (!ok) return;
     try {
       setProcessingId(request.id);
       await updateDoc(doc(db, 'signup_requests', request.id), {

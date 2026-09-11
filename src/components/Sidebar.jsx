@@ -1,5 +1,6 @@
 import { NavLink, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useConfirm } from '../context/ConfirmContext';
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
@@ -9,6 +10,7 @@ import { APPROVER_ROLES, ROLE_CHANGER_ROLES } from '../constants/roles';
 export default function Sidebar({ isOpen, onClose }) {
   const { userProfile, logout } = useAuth();
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const [pendingCount, setPendingCount] = useState(0);
 
   const role = userProfile?.role;
@@ -31,7 +33,8 @@ export default function Sidebar({ isOpen, onClose }) {
   }, [canSeeRequests]);
 
   const handleLogout = async () => {
-    if (!window.confirm('Are you sure you want to log out?')) return;
+    const ok = await confirm({ message: 'Are you sure you want to log out?', confirmText: 'Log out', type: 'danger' });
+    if (!ok) return;
     try {
       await logout();
       navigate('/login');

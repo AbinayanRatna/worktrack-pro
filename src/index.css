@@ -56,7 +56,8 @@ button {
   font-family: inherit;
   color: inherit;
 }
-}
+
+} /* end @layer base */
 
 @layer components {
 
@@ -325,4 +326,15 @@ button {
 .login-content {
   @apply relative z-10 flex w-full justify-center;
 }
+
+@keyframes confirmFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
+
+@keyframes confirmScaleIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+} /* end @layer components */
